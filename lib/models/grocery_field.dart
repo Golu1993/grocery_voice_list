@@ -1,8 +1,22 @@
 
-class GroceryField {
-  final String name;
-  final int quantity;
-  final String unit;
+import 'package:hive/hive.dart';
 
-  const GroceryField({required this.name, required this.quantity, required this.unit});
+part 'grocery_field.g.dart';
+
+@HiveType(typeId: 2)
+class GroceryField extends HiveObject {
+  @HiveField(0)
+  String name;
+
+  @HiveField(1)
+  double quantity;
+
+  @HiveField(2)
+  String unit;
+
+  GroceryField({
+    required this.name,
+    required this.quantity,
+    required this.unit,
+  });
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:grocery_voice_list/providers/order_provider.dart';
 import 'package:grocery_voice_list/screens/my_orders_screen.dart';
+import 'package:grocery_voice_list/services/hive_service.dart';
 import 'package:grocery_voice_list/widgets/custom_appbar.dart';
 import 'package:grocery_voice_list/widgets/item_progress_bar.dart';
 import 'package:provider/provider.dart';
@@ -36,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _showDeleteConfirmAll(BuildContext context) {
     final grocery = context.read<GroceryProvider>();
+    final orderProvider = context.read<OrderProvider>();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -50,6 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           FilledButton(
             onPressed: () {
+              orderProvider.addOrder(HiveService.getAllGroceryItems());
               grocery.clearAll();
               Get.back();
             },
@@ -316,7 +320,7 @@ class _HomeScreenState extends State<HomeScreen> {
             IconTextButton(
               icon: Icons.add,
               backgroundColor: AppColors.of(context).primary,
-              text: 'List',
+              text: 'New List',
               onTap: () {
                 _showDeleteConfirmAll(context);
               },

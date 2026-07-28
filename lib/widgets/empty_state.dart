@@ -14,20 +14,6 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: colorScheme.primaryContainer.withOpacity(0.4),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.mic_rounded,
-                size: 56,
-                color: colorScheme.primary,
-              ),
-            ),
-            const SizedBox(height: 32),
             Text(
               'Your list is empty',
               style: theme.textTheme.headlineSmall?.copyWith(

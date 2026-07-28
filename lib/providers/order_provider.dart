@@ -1,67 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:grocery_voice_list/models/grocery_field.dart';
+import 'package:grocery_voice_list/services/hive_service.dart';
 
 import '../models/order_item.dart';
 
 class OrderProvider extends ChangeNotifier {
-  final List<OrderItem> _orders = [
-    OrderItem(
-      time: 'Today, 10:30 AM',
-      storeName: 'Fresh Mart',
-      itemCount: 5,
-      amount: 320,
-      status: 'Delivered',
-      itemList: const [
-        GroceryField(name: 'Potato', quantity: 2, unit: 'kg'),
-        GroceryField(name: 'Onion', quantity: 1, unit: 'kg'),
-        GroceryField(name: 'Coriander', quantity: 1, unit: 'kg'),
-        GroceryField(name: 'Tomato', quantity: 3, unit: 'kg'),
-        GroceryField(name: 'Milk', quantity: 2, unit: 'lt'),
-      ],
-    ),
-    OrderItem(
-      time: 'Today, 10:30 AM',
-      storeName: 'Fresh Mart',
-      itemCount: 5,
-      amount: 320,
-      status: 'Delivered',
-      itemList: const [
-        GroceryField(name: 'Potato', quantity: 2, unit: 'kg'),
-        GroceryField(name: 'Onion', quantity: 1, unit: 'kg'),
-        GroceryField(name: 'Coriander', quantity: 1, unit: 'kg'),
-        GroceryField(name: 'Tomato', quantity: 3, unit: 'kg'),
-        GroceryField(name: 'Milk', quantity: 2, unit: 'lt'),
-      ],
-    ),
-    OrderItem(
-      time: 'Today, 10:30 AM',
-      storeName: 'Fresh Mart',
-      itemCount: 5,
-      amount: 320,
-      status: 'Delivered',
-      itemList: const [
-        GroceryField(name: 'Potato', quantity: 2, unit: 'kg'),
-        GroceryField(name: 'Onion', quantity: 1, unit: 'kg'),
-        GroceryField(name: 'Coriander', quantity: 1, unit: 'kg'),
-        GroceryField(name: 'Tomato', quantity: 3, unit: 'kg'),
-        GroceryField(name: 'Milk', quantity: 2, unit: 'lt'),
-      ],
-    ),
-    OrderItem(
-      time: 'Today, 10:30 AM',
-      storeName: 'Fresh Mart',
-      itemCount: 5,
-      amount: 320,
-      status: 'Delivered',
-      itemList: const [
-        GroceryField(name: 'Potato', quantity: 2, unit: 'kg'),
-        GroceryField(name: 'Onion', quantity: 1, unit: 'kg'),
-        GroceryField(name: 'Coriander', quantity: 1, unit: 'kg'),
-        GroceryField(name: 'Tomato', quantity: 3, unit: 'kg'),
-        GroceryField(name: 'Milk', quantity: 2, unit: 'lt'),
-      ],
-    ),
-  ];
+  final List<OrderItem> _orders = HiveService.getAllOrders();
 
   List<OrderItem> get orders => _orders;
 

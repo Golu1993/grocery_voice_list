@@ -102,9 +102,7 @@ Widget getOrderListWidget(
                     ),
                   ),
             CustomElevatedButton(
-              label: order.isExpanded ? 'Hide' : 'Show',
-              width: 100,
-              height: 35,
+              label: order.isExpanded ? 'Collapse' : 'Expand',
               onPressed: () {
                 provider.toggleExpanded(position);
               },

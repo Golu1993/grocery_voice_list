@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 const String kGroceryBox = 'grocery_items';
+const String kOrderBox = 'grocery_orders';
 
 enum GroceryCategory {
   all,
