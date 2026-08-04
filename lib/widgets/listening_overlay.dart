@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:grocery_voice_list/utils/app_colors.dart';
 import 'package:provider/provider.dart';
 import '../providers/voice_provider.dart';
 import '../providers/grocery_provider.dart';
@@ -75,8 +76,8 @@ class _ListeningOverlayState extends State<ListeningOverlay>
   Widget build(BuildContext context) {
     final voice = context.watch<VoiceProvider>();
     final grocery = context.read<GroceryProvider>();
-    final colorScheme = Theme.of(context).colorScheme;
-    final theme = Theme.of(context);
+    final colorScheme = AppColors.of(context);
+    final theme = AppColors.theme(context);
 
     return Container(
       decoration: BoxDecoration(

@@ -4,7 +4,7 @@ import 'package:grocery_voice_list/services/hive_service.dart';
 import '../models/order_item.dart';
 
 class OrderProvider extends ChangeNotifier {
-  final List<OrderItem> _orders = HiveService.getAllOrders();
+   List<OrderItem> _orders = HiveService.getAllOrders();
 
   List<OrderItem> get orders => _orders;
 
@@ -21,13 +21,12 @@ class OrderProvider extends ChangeNotifier {
   }
 
   Future<void> refreshOrders() async {
-    await Future.delayed(const Duration(seconds: 1));
-
+    _orders = HiveService.getAllOrders();
     notifyListeners();
   }
 
   void addOrder(OrderItem order) {
-    _orders.insert(0, order);
+    _orders.add(order);
     notifyListeners();
   }
 

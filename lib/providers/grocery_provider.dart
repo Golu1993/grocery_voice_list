@@ -66,7 +66,7 @@ class GroceryProvider extends ChangeNotifier {
   // ── Initialization ────────────────────────────────────────────────────────
 
   Future<void> loadItems() async {
-    _items = HiveService.getAll();
+    _items = HiveService.getAllGrocery();
     notifyListeners();
   }
 

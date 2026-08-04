@@ -1,5 +1,4 @@
 import 'package:grocery_voice_list/models/grocery_field.dart';
-
 import 'package:hive/hive.dart';
 
 part 'order.item.g.dart';
@@ -26,6 +25,11 @@ class OrderItem extends HiveObject {
 
   @HiveField(6)
   bool isExpanded;
+  @HiveField(7)
+  int orderId;
+
+  @HiveField(8)
+  bool isCurrent;
 
   OrderItem({
     required this.time,
@@ -34,6 +38,8 @@ class OrderItem extends HiveObject {
     required this.amount,
     required this.status,
     required this.itemList,
+    required this.orderId,
     this.isExpanded = false,
+    required this.isCurrent,
   });
 }

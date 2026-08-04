@@ -19,6 +19,8 @@ class OrderItemAdapter extends TypeAdapter<OrderItem> {
       status: fields[4] as String,
       itemList: (fields[5] as List).cast<GroceryField>(),
       isExpanded: fields[6] as bool? ?? false,
+      orderId: fields[7] as int? ??0,
+      isCurrent: fields[8] as bool? ??true,
     );
   }
 
@@ -39,7 +41,11 @@ class OrderItemAdapter extends TypeAdapter<OrderItem> {
       ..writeByte(5)
       ..write(obj.itemList)
       ..writeByte(6)
-      ..write(obj.isExpanded);
+      ..write(obj.isExpanded)
+      ..writeByte(7)
+      ..write(obj.orderId)
+      ..writeByte(8)
+      ..write(obj.isCurrent);
   }
 
   @override

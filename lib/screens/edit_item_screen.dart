@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:grocery_voice_list/widgets/custom_appbar.dart';
 import 'package:provider/provider.dart';
 import '../models/grocery_item.dart';
@@ -73,7 +74,7 @@ class _EditItemScreenState extends State<EditItemScreen> {
         notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
       );
     }
-    if (mounted) Navigator.pop(context);
+    if (mounted) Get.back();
   }
 
   @override
@@ -82,6 +83,7 @@ class _EditItemScreenState extends State<EditItemScreen> {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
+      backgroundColor: colorScheme.surfaceContainerLowest,
       appBar: CustomAppBar(title:_isEditing ? 'Edit Item' : 'Add Item',showBackButton: true,),
       body: Form(
         key: _formKey,

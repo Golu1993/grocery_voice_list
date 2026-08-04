@@ -1,4 +1,4 @@
-package com.example.grocery_voice_list
+package com.niviclouds.groceryvoicelist
 
 import io.flutter.embedding.android.FlutterActivity
 

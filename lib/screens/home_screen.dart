@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:grocery_voice_list/providers/order_provider.dart';
 import 'package:grocery_voice_list/screens/my_orders_screen.dart';
+import 'package:grocery_voice_list/screens/setting_screen.dart';
 import 'package:grocery_voice_list/services/hive_service.dart';
 import 'package:grocery_voice_list/widgets/custom_appbar.dart';
 import 'package:grocery_voice_list/widgets/item_progress_bar.dart';
@@ -12,7 +13,6 @@ import '../providers/voice_provider.dart';
 import '../utils/app_colors.dart';
 import '../widgets/category_filter_row.dart';
 import '../widgets/empty_state.dart';
-import '../widgets/fab_position.dart';
 import '../widgets/grocery_list_item.dart';
 import '../widgets/icon_text_button.dart';
 import '../widgets/voice_fab.dart';
@@ -43,21 +43,16 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Start New List?'),
-        content: const Text(
-          'Creating a new list will remove all items from your current list. This action cannot be undone.',
-        ),
+        content: const Text('Do you want to start a new list ?'),
         actions: [
-          TextButton(
-            onPressed: () =>   Get.back(),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Get.back(), child: const Text('Cancel')),
           FilledButton(
             onPressed: () {
-              orderProvider.addOrder(HiveService.getAllGroceryItems());
+              orderProvider.addOrder(HiveService.getAllGroceryItems(false));
               grocery.clearAll();
               Get.back();
             },
-            child: const Text('Start New List'),
+            child: const Text('Start'),
           ),
         ],
       ),
@@ -131,6 +126,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final colorScheme = AppColors.of(context);
 
     return Scaffold(
+      backgroundColor: colorScheme.surfaceContainerLowest,
       appBar: CustomAppBar(
         title: getTitle(indexClick),
         actions: [
@@ -169,12 +165,18 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(width: 16),
         ],
       ),
-      body: Container(
-        margin: EdgeInsets.only(left: 15, right: 15),
+      body: SafeArea(
         child: Column(
           children: [
-            Expanded(child: _setWidgetOnTabClick(indexClick)),
-            SizedBox(
+            Expanded(
+              child: Padding(
+                padding: EdgeInsetsGeometry.only(left: 15, right: 15),
+                child: _setWidgetOnTabClick(indexClick),
+              ),
+            ),
+            Container(
+              color: colorScheme.surface,
+              height: 65,
               width: double.infinity,
               child: Row(
                 children: [
@@ -184,15 +186,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         indexClick = 0;
                         setState(() {});
                       },
-                      borderRadius: BorderRadius.circular(8),
-                      child: Padding(
-                        padding: EdgeInsets.all(8.0),
+                      child: SizedBox(
+                        height: 65,
                         child: Column(
-                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
                               Icons.home,
-                              size: 30,
+                              size: 25,
                               color: indexClick == 0
                                   ? colorScheme.primary
                                   : Colors.grey,
@@ -200,7 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Text(
                               'Home',
                               style: TextStyle(
-                                fontSize: 14,
+                                fontSize: 13,
                                 color: indexClick == 0
                                     ? colorScheme.primary
                                     : Colors.grey,
@@ -217,15 +218,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         indexClick = 1;
                         setState(() {});
                       },
-                      borderRadius: BorderRadius.circular(8),
-                      child: Padding(
-                        padding: EdgeInsets.all(8.0),
+                      child: SizedBox(
+                        height: 65,
                         child: Column(
-                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
                               Icons.bookmark_border,
-                              size: 30,
+                              size: 25,
                               color: indexClick == 1
                                   ? colorScheme.primary
                                   : Colors.grey,
@@ -233,8 +233,40 @@ class _HomeScreenState extends State<HomeScreen> {
                             Text(
                               'My Orders',
                               style: TextStyle(
-                                fontSize: 14,
+                                fontSize: 13,
                                 color: indexClick == 1
+                                    ? colorScheme.primary
+                                    : Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        indexClick = 2;
+                        setState(() {});
+                      },
+                      child: SizedBox(
+                        height: 65,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.settings,
+                              size: 25,
+                              color: indexClick == 2
+                                  ? colorScheme.primary
+                                  : Colors.grey,
+                            ),
+                            Text(
+                              'Setting',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: indexClick == 2
                                     ? colorScheme.primary
                                     : Colors.grey,
                               ),
@@ -247,12 +279,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-            SizedBox(height: 20),
+            SizedBox(height: 5),
           ],
         ),
       ),
-      floatingActionButton: indexClick == 0 ? VoiceFab() : SizedBox(),
-      floatingActionButtonLocation: OffsetFabLocation(),
+      floatingActionButton: indexClick == 0
+          ? Padding(
+              padding: const EdgeInsets.only(bottom: 80),
+              child: VoiceFab(),
+            )
+          : SizedBox(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
@@ -262,6 +299,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Grocery Store';
       case 1:
         return 'My Orders';
+      case 2:
+        return 'Settings';
       default:
         return '';
     }
@@ -273,10 +312,11 @@ class _HomeScreenState extends State<HomeScreen> {
         return getHomePageWidget();
       case 1:
         return MyOrdersScreen();
+      case 2:
+        return SettingScreen();
       default:
         SizedBox();
     }
-    ;
   }
 
   Widget getHomePageWidget() {
@@ -308,6 +348,8 @@ class _HomeScreenState extends State<HomeScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
+            Image.asset('images/trans_logo.webp', height: 60, width: 60),
+            Expanded(child: SizedBox()),
             IconTextButton(
               icon: Icons.add,
               text: 'Item',

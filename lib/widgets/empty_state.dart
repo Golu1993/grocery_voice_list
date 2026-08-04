@@ -1,43 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:grocery_voice_list/utils/app_colors.dart';
 
 class EmptyState extends StatelessWidget {
   const EmptyState({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final theme = AppColors.theme(context);
     final colorScheme = theme.colorScheme;
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Your list is empty',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: colorScheme.onSurface,
-              ),
+    return Padding(
+      padding: const EdgeInsets.only(top: 50),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            'Your list is empty',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: colorScheme.onSurface,
             ),
-            const SizedBox(height: 12),
-            Text(
-              'Tap the mic and say something like\n"Add 2 kg tomatoes" or "Doodh chahiye"',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-                height: 1.6,
-              ),
-              textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Tap the mic and say something like\n"Add 2 kg tomatoes" or "Doodh chahiye"',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+              height: 1.6,
             ),
-            const SizedBox(height: 32),
-            _HintChip(text: '"Add 500g butter"'),
-            const SizedBox(height: 8),
-            _HintChip(text: '"Ek kilo aloo chahiye"'),
-            const SizedBox(height: 8),
-            _HintChip(text: '"Add one more kg potatoes"'),
-          ],
-        ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          _HintChip(text: '"Add 500g butter"'),
+          const SizedBox(height: 8),
+          _HintChip(text: '"Ek kilo aloo chahiye"'),
+          const SizedBox(height: 8),
+          _HintChip(text: '"Add one more kg potatoes"'),
+        ],
       ),
     );
   }

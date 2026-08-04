@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:grocery_voice_list/widgets/custom_elevated_button.dart';
+import 'package:grocery_voice_list/utils/app_colors.dart';
 import 'package:provider/provider.dart';
 
 import '../models/order_item.dart';
@@ -16,141 +16,209 @@ class MyOrdersScreen extends StatefulWidget {
 
 class _MyOrdersScreenState extends State<MyOrdersScreen> {
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<OrderProvider>().refreshOrders();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          const SizedBox(height: 12),
-          Consumer<OrderProvider>(
-            builder: (context, provider, child) {
-              return Expanded(
-                child: provider.orders.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'No orders found',
-                          style: TextStyle(color: Colors.black54, fontSize: 15),
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: provider.orders.length,
-                        itemBuilder: (context, index) {
-                          return getOrderListWidget(
-                            provider.orders,
-                            index,
-                            provider,
-                          );
-                        },
-                      ),
-              );
-            },
-          ),
-        ],
+      backgroundColor: AppColors.of(context).surfaceContainerLowest,
+      body: Consumer<OrderProvider>(
+        builder: (context, provider, _) {
+          if (provider.orders.isEmpty||provider.orders.first.itemList.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.shopping_cart_outlined,
+                    size: 70,
+                    color: Colors.grey,
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    "No Orders Yet",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    "Your grocery orders will appear here.",
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            itemCount: provider.orders.length,
+            itemBuilder: (_, index) => getOrderListWidget(index, provider,context),
+          );
+        },
       ),
     );
   }
 }
 
-Widget getOrderListWidget(
-  List<OrderItem> orderItem,
-  int position,
-  OrderProvider provider,
-) {
-  OrderItem order = orderItem[position];
-  return Container(
-    margin: const EdgeInsets.only(bottom: 14),
-    padding: const EdgeInsets.all(16),
+Widget getOrderListWidget(int index, OrderProvider provider, BuildContext context) {
+  final order = provider.orders[index];
+
+  return AnimatedContainer(
+    duration: const Duration(milliseconds: 300),
+    margin: const EdgeInsets.all(5),
     decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
+      color: AppColors.of(context).surfaceContainerLow,
+      borderRadius: BorderRadius.circular(10),
       boxShadow: [
         BoxShadow(
           color: Colors.black12,
-          blurRadius: 10,
-          offset: const Offset(0, 4),
+          blurRadius: 5,
+          offset: const Offset(0, 5),
         ),
       ],
     ),
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              order.time,
-              style: const TextStyle(color: Colors.black54, fontSize: 13),
-            ),
-            Text(
-              order.status,
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
-        const SizedBox(height: 15),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            order.isExpanded
-                ? Expanded(child: showExpandedWidget(order))
-                : Text(
-                    order.itemList.take(3).map((e) => e.name).join(' , '),
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
+        Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.shopping_basket_outlined,
+                  color: Colors.green.shade700,
+                ),
+              ),
+
+              const SizedBox(width: 14),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      order.itemList.take(3).map((e) => e.name).join(" • ") +
+                          (order.itemList.length > 3
+                              ? " +${order.itemList.length - 3} more"
+                              : ""),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-            CustomElevatedButton(
-              label: order.isExpanded ? 'Collapse' : 'Expand',
-              onPressed: () {
-                provider.toggleExpanded(position);
-              },
-            ),
-          ],
+
+                    const SizedBox(height: 4),
+
+                    Text(
+                      order.time,
+                      style: TextStyle(color: Colors.grey.shade600,fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+
+              IconButton(
+                splashRadius: 22,
+                onPressed: () => provider.toggleExpanded(index),
+                icon: AnimatedRotation(
+                  turns: order.isExpanded ? .5 : 0,
+                  duration: const Duration(milliseconds: 250),
+                  child: const Icon(Icons.keyboard_arrow_down),
+                ),
+              ),
+            ],
+          ),
         ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              "${order.itemList.length} Items",
+              style: TextStyle(
+                color: Colors.green.shade700,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        order.isExpanded ? Container(
+          padding: EdgeInsets.all(10),
+          child: showExpandedWidget(order),
+        ) : SizedBox(),
       ],
     ),
   );
 }
 
 Widget showExpandedWidget(OrderItem order) {
-  return Padding(
-    padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
-    child: Column(
-      children: order.itemList.map((item) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Row(
-            children: [
-              Text(
+  return Column(
+    children: order.itemList.map((item) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.green.shade100,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.shopping_basket_outlined,
+                size: 15,
+                color: Colors.green,
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            Expanded(
+              child: Text(
                 item.name,
                 style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              SizedBox(width: 20,),
-              Text('->',
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              SizedBox(width: 20,),
-              Text(
-                '${item.quantity} ${item.unit}',
-                style: const TextStyle(
-                  fontSize: 15,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-            ],
-          ),
-        );
-      }).toList(),
-    ),
+            ),
+
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade100,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                "${item.quantity} ${item.unit}",
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.orange.shade900,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }).toList(),
   );
 }
