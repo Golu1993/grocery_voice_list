@@ -1,4 +1,4 @@
-import 'package:grocery_voice_list/models/order_item.dart';
+import '../models/order_item.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 
@@ -41,6 +41,9 @@ class HiveService {
     await _box.delete(id);
     saveCurrentItem();
 
+  }
+  static Future<void> deleteOrder(int id) async {
+    await _boxOrder.delete(id);
   }
 
   static Future<void> deleteAll() async {
@@ -97,6 +100,7 @@ class HiveService {
               name: item.name,
               quantity: item.quantity,
               unit: item.unit,
+              isChecked: item.isChecked,
             ),
           )
           .toList(),

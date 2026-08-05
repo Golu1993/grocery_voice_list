@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:grocery_voice_list/widgets/custom_appbar.dart';
+import '../widgets/custom_appbar.dart';
 
 class PrivacyPolicyPage extends StatelessWidget {
   const PrivacyPolicyPage({super.key});

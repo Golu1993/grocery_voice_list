@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:grocery_voice_list/services/hive_service.dart';
 
 import '../models/order_item.dart';
+import '../services/hive_service.dart';
 
 class OrderProvider extends ChangeNotifier {
    List<OrderItem> _orders = HiveService.getAllOrders();
@@ -31,6 +31,7 @@ class OrderProvider extends ChangeNotifier {
   }
 
   void removeOrder(int index) {
+    HiveService.deleteOrder(_orders[index].orderId);
     _orders.removeAt(index);
     notifyListeners();
   }

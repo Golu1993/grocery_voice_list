@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:grocery_voice_list/screens/confirm_and_send_screen.dart';
+import '../screens/confirm_and_send_screen.dart';
 
 import '../widgets/custom_elevated_button.dart';
 

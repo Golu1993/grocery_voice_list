@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:grocery_voice_list/widgets/custom_appbar.dart';
 import 'package:provider/provider.dart';
+
 import '../models/grocery_item.dart';
 import '../providers/grocery_provider.dart';
 import '../utils/constants.dart';
+import '../widgets/custom_appbar.dart';
 
 class EditItemScreen extends StatefulWidget {
   final GroceryItem? item; // null = add new item manually
@@ -84,7 +85,10 @@ class _EditItemScreenState extends State<EditItemScreen> {
 
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,
-      appBar: CustomAppBar(title:_isEditing ? 'Edit Item' : 'Add Item',showBackButton: true,),
+      appBar: CustomAppBar(
+        title: _isEditing ? 'Edit Item' : 'Add Item',
+        showBackButton: true,
+      ),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -101,7 +105,8 @@ class _EditItemScreenState extends State<EditItemScreen> {
                   borderRadius: BorderRadius.all(Radius.circular(14)),
                 ),
               ),
-              validator: (v) => v == null || v.trim().isEmpty ? 'Enter item name' : null,
+              validator: (v) =>
+                  v == null || v.trim().isEmpty ? 'Enter item name' : null,
             ),
             const SizedBox(height: 16),
 
@@ -113,7 +118,9 @@ class _EditItemScreenState extends State<EditItemScreen> {
                   flex: 2,
                   child: TextFormField(
                     controller: _quantityCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     decoration: const InputDecoration(
                       labelText: 'Quantity',
                       prefixIcon: Icon(Icons.numbers_rounded),
@@ -139,10 +146,14 @@ class _EditItemScreenState extends State<EditItemScreen> {
                         borderRadius: BorderRadius.all(Radius.circular(14)),
                       ),
                     ),
-                    items: kUnits.map((u) => DropdownMenuItem(
-                      value: u,
-                      child: Text('${kUnitDisplay[u] ?? u} ($u)'),
-                    )).toList(),
+                    items: kUnits
+                        .map(
+                          (u) => DropdownMenuItem(
+                            value: u,
+                            child: Text('${kUnitDisplay[u] ?? u} ($u)'),
+                          ),
+                        )
+                        .toList(),
                     onChanged: (v) => setState(() => _selectedUnit = v!),
                   ),
                 ),
@@ -159,20 +170,24 @@ class _EditItemScreenState extends State<EditItemScreen> {
               children: GroceryCategory.values
                   .where((c) => c != GroceryCategory.all)
                   .map((cat) {
-                final isSelected = cat == _selectedCategory;
-                return ChoiceChip(
-                  selected: isSelected,
-                  onSelected: (_) => setState(() => _selectedCategory = cat),
-                  avatar: Icon(cat.icon, size: 16),
-                  label: Text(cat.displayName),
-                  selectedColor: cat.color,
-                  labelStyle: TextStyle(
-                    color: isSelected ? Colors.white : colorScheme.onSurface,
-                    fontSize: 12,
-                  ),
-                  showCheckmark: false,
-                );
-              }).toList(),
+                    final isSelected = cat == _selectedCategory;
+                    return ChoiceChip(
+                      selected: isSelected,
+                      onSelected: (_) =>
+                          setState(() => _selectedCategory = cat),
+                      avatar: Icon(cat.icon, size: 16),
+                      label: Text(cat.displayName),
+                      selectedColor: cat.color,
+                      labelStyle: TextStyle(
+                        color: isSelected
+                            ? Colors.white
+                            : colorScheme.onSurface,
+                        fontSize: 12,
+                      ),
+                      showCheckmark: false,
+                    );
+                  })
+                  .toList(),
             ),
             const SizedBox(height: 16),
 

@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:grocery_voice_list/utils/app_colors.dart';
+import '../utils/app_colors.dart';
 import 'package:provider/provider.dart';
 import '../providers/voice_provider.dart';
 import '../providers/grocery_provider.dart';

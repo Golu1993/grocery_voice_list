@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:grocery_voice_list/utils/app_colors.dart';
+import '../utils/app_colors.dart';
 
 class AppTheme {
   static const _seedColor = AppColors.primary;

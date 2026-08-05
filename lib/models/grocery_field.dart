@@ -13,10 +13,13 @@ class GroceryField extends HiveObject {
 
   @HiveField(2)
   String unit;
+  @HiveField(3)
+  bool? isChecked;
 
   GroceryField({
     required this.name,
     required this.quantity,
     required this.unit,
+    required this.isChecked,
   });
 }

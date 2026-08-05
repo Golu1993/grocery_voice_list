@@ -6,11 +6,11 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class Utility {
-
   static Future<String> appVersion() async {
     final info = await PackageInfo.fromPlatform();
     return "${info.version} (${info.buildNumber})";
   }
+
   static Future<void> openPrivacyPolicy() async {
     final uri = Uri.parse("https://niviclouds.com/");
 
@@ -19,25 +19,27 @@ class Utility {
 
   static Future<void> shareApp() async {
     const androidUrl =
-        'https://play.google.com/store/apps/details?id=com.niviclouds.grocerylistapp';
+        'https://play.google.com/store/apps/details?id=com.niviclouds.groceryvoicelist';
 
     const iosUrl = 'https://apps.apple.com/app/id1234567890';
 
     final appUrl = Platform.isAndroid ? androidUrl : iosUrl;
-
-    await SharePlus.instance.share(
-      ShareParams(
-        text:
-            '''
+    if (Platform.isAndroid) {
+      await SharePlus.instance.share(
+        ShareParams(
+          text:
+              '''
 Check out this app!
 Easily create and manage your grocery lists.
 Download it here:
 $appUrl
 ''',
-      ),
-    );
+        ),
+      );
+    }
   }
- static Future<void> rateApp() async {
+
+  static Future<void> rateApp() async {
     final review = InAppReview.instance;
 
     if (await review.isAvailable()) {

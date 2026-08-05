@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:grocery_voice_list/providers/order_provider.dart';
-import 'package:grocery_voice_list/screens/my_orders_screen.dart';
-import 'package:grocery_voice_list/screens/setting_screen.dart';
-import 'package:grocery_voice_list/services/hive_service.dart';
-import 'package:grocery_voice_list/widgets/custom_appbar.dart';
-import 'package:grocery_voice_list/widgets/item_progress_bar.dart';
+import 'package:groceryvoicelist/screens/setting_screen.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/grocery_provider.dart';
+import '../providers/order_provider.dart';
 import '../providers/voice_provider.dart';
+import '../services/hive_service.dart';
 import '../utils/app_colors.dart';
 import '../widgets/category_filter_row.dart';
+import '../widgets/custom_appbar.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/grocery_list_item.dart';
 import '../widgets/icon_text_button.dart';
+import '../widgets/item_progress_bar.dart';
 import '../widgets/voice_fab.dart';
 import 'edit_item_screen.dart';
+import 'my_orders_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -224,14 +224,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              Icons.bookmark_border,
+                              Icons.list_alt,
                               size: 25,
                               color: indexClick == 1
                                   ? colorScheme.primary
                                   : Colors.grey,
                             ),
                             Text(
-                              'My Orders',
+                              'My Lists',
                               style: TextStyle(
                                 fontSize: 13,
                                 color: indexClick == 1
@@ -256,14 +256,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              Icons.settings,
+                              Icons.info,
                               size: 25,
                               color: indexClick == 2
                                   ? colorScheme.primary
                                   : Colors.grey,
                             ),
                             Text(
-                              'Setting',
+                              'Info',
                               style: TextStyle(
                                 fontSize: 13,
                                 color: indexClick == 2
@@ -300,7 +300,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case 1:
         return 'My Orders';
       case 2:
-        return 'Settings';
+        return 'App Info';
       default:
         return '';
     }

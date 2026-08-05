@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:grocery_voice_list/utils/app_colors.dart';
-import 'package:grocery_voice_list/utils/utility.dart';
-import 'package:grocery_voice_list/widgets/custom_appbar.dart';
-import 'package:package_info_plus/package_info_plus.dart';
+
+import '../utils/app_colors.dart';
+import '../utils/utility.dart';
+import '../widgets/custom_appbar.dart';
 
 class AboutAppPage extends StatefulWidget {
   const AboutAppPage({super.key});
@@ -55,10 +55,7 @@ class _AboutAppPageState extends State<AboutAppPage> {
                 const SizedBox(height: 16),
                 const Text(
                   'Vocart',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -80,14 +77,14 @@ class _AboutAppPageState extends State<AboutAppPage> {
             context,
             child: Text(
               'Vocart is an intelligent voice-powered shopping list '
-                  'application that helps you create, organize, and manage '
-                  'your shopping lists effortlessly.\n\n'
-                  'Using advanced speech recognition, Vocart converts your '
-                  'spoken words into organized shopping items, allowing you '
-                  'to build lists quickly without typing.\n\n'
-                  'Whether you\'re shopping for groceries, household '
-                  'essentials, or personal items, Vocart makes the process '
-                  'faster, simpler, and more convenient.',
+              'application that helps you create, organize, and manage '
+              'your shopping lists effortlessly.\n\n'
+              'Using advanced speech recognition, Vocart converts your '
+              'spoken words into organized shopping items, allowing you '
+              'to build lists quickly without typing.\n\n'
+              'Whether you\'re shopping for groceries, household '
+              'essentials, or personal items, Vocart makes the process '
+              'faster, simpler, and more convenient.',
               style: TextStyle(
                 fontSize: 14,
                 height: 1.6,
@@ -98,11 +95,7 @@ class _AboutAppPageState extends State<AboutAppPage> {
 
           const SizedBox(height: 26),
 
-          _sectionTitle(
-            context,
-            Icons.auto_awesome_outlined,
-            'Key Features',
-          ),
+          _sectionTitle(context, Icons.auto_awesome_outlined, 'Key Features'),
 
           const SizedBox(height: 12),
 
@@ -190,18 +183,9 @@ class _AboutAppPageState extends State<AboutAppPage> {
             context,
             child: Column(
               children: [
-                _benefit(
-                  context,
-                  'Save time by eliminating manual typing.',
-                ),
-                _benefit(
-                  context,
-                  'Create shopping lists in seconds.',
-                ),
-                _benefit(
-                  context,
-                  'Stay organized with smart item management.',
-                ),
+                _benefit(context, 'Save time by eliminating manual typing.'),
+                _benefit(context, 'Create shopping lists in seconds.'),
+                _benefit(context, 'Stay organized with smart item management.'),
                 _benefit(
                   context,
                   'Reduce the chances of forgetting important items.',
@@ -221,19 +205,12 @@ class _AboutAppPageState extends State<AboutAppPage> {
           Center(
             child: Column(
               children: [
-                Icon(
-                  Icons.mic_rounded,
-                  size: 28,
-                  color: colors.primary,
-                ),
+                Icon(Icons.mic_rounded, size: 28, color: colors.primary),
                 const SizedBox(height: 8),
 
                 const Text(
                   'Vocart',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
 
                 const SizedBox(height: 4),
@@ -272,11 +249,7 @@ class _AboutAppPageState extends State<AboutAppPage> {
     );
   }
 
-  Widget _sectionTitle(
-      BuildContext context,
-      IconData icon,
-      String title,
-      ) {
+  Widget _sectionTitle(BuildContext context, IconData icon, String title) {
     final colors = Theme.of(context).colorScheme;
 
     return Row(
@@ -287,30 +260,23 @@ class _AboutAppPageState extends State<AboutAppPage> {
             color: colors.primaryContainer,
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(
-            icon,
-            size: 20,
-            color: colors.primary,
-          ),
+          child: Icon(icon, size: 20, color: colors.primary),
         ),
         const SizedBox(width: 10),
         Text(
           title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ],
     );
   }
 
   Widget _feature(
-      BuildContext context,
-      IconData icon,
-      String title,
-      String description,
-      ) {
+    BuildContext context,
+    IconData icon,
+    String title,
+    String description,
+  ) {
     final colors = Theme.of(context).colorScheme;
 
     return Container(
@@ -319,9 +285,7 @@ class _AboutAppPageState extends State<AboutAppPage> {
       decoration: BoxDecoration(
         color: colors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: colors.outlineVariant.withOpacity(.5),
-        ),
+        border: Border.all(color: colors.outlineVariant.withOpacity(.5)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -333,11 +297,7 @@ class _AboutAppPageState extends State<AboutAppPage> {
               color: colors.primaryContainer,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              icon,
-              size: 21,
-              color: colors.primary,
-            ),
+            child: Icon(icon, size: 21, color: colors.primary),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -368,10 +328,7 @@ class _AboutAppPageState extends State<AboutAppPage> {
     );
   }
 
-  Widget _contentCard(
-      BuildContext context, {
-        required Widget child,
-      }) {
+  Widget _contentCard(BuildContext context, {required Widget child}) {
     final colors = Theme.of(context).colorScheme;
 
     return Container(
@@ -380,25 +337,21 @@ class _AboutAppPageState extends State<AboutAppPage> {
       decoration: BoxDecoration(
         color: colors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: colors.outlineVariant.withOpacity(.5),
-        ),
+        border: Border.all(color: colors.outlineVariant.withOpacity(.5)),
       ),
       child: child,
     );
   }
 
   Widget _benefit(
-      BuildContext context,
-      String text, {
-        bool showBottomSpace = true,
-      }) {
+    BuildContext context,
+    String text, {
+    bool showBottomSpace = true,
+  }) {
     final colors = Theme.of(context).colorScheme;
 
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: showBottomSpace ? 12 : 0,
-      ),
+      padding: EdgeInsets.only(bottom: showBottomSpace ? 12 : 0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

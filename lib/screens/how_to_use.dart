@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:grocery_voice_list/utils/app_colors.dart';
-import 'package:grocery_voice_list/widgets/custom_appbar.dart';
+import '../utils/app_colors.dart';
+import '../widgets/custom_appbar.dart';
 
 class HowToUsePage extends StatelessWidget {
   const HowToUsePage({super.key});

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:grocery_voice_list/utils/app_colors.dart';
+import '../utils/app_colors.dart';
 
 class IconTextButton extends StatelessWidget {
   final IconData icon;

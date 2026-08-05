@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:grocery_voice_list/screens/about_app.dart';
-import 'package:grocery_voice_list/screens/how_to_use.dart';
-import 'package:grocery_voice_list/screens/privacy_policy.dart';
-import 'package:grocery_voice_list/utils/app_colors.dart';
-import 'package:grocery_voice_list/utils/utility.dart';
+import '../screens/about_app.dart';
+import '../screens/how_to_use.dart';
+import '../screens/privacy_policy.dart';
+import '../utils/app_colors.dart';
+import '../utils/utility.dart';
 
 class SettingScreen extends StatefulWidget {
   const SettingScreen({super.key});

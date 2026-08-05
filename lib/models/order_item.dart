@@ -1,5 +1,6 @@
-import 'package:grocery_voice_list/models/grocery_field.dart';
 import 'package:hive/hive.dart';
+
+import 'grocery_field.dart';
 
 part 'order.item.g.dart';
 

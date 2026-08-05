@@ -15,19 +15,22 @@ class GroceryFieldAdapter extends TypeAdapter<GroceryField> {
       name: fields[0] as String,
       quantity: (fields[1] as num).toDouble(),
       unit: fields[2] as String,
+      isChecked: (fields[3]??false) as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, GroceryField obj) {
     writer
-      ..writeByte(3)
+      ..writeByte(4)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
       ..write(obj.quantity)
       ..writeByte(2)
-      ..write(obj.unit);
+      ..write(obj.unit)
+      ..writeByte(3)
+      ..write(obj.isChecked??false);
   }
 
   @override

@@ -27,7 +27,7 @@ class OrderItemAdapter extends TypeAdapter<OrderItem> {
   @override
   void write(BinaryWriter writer, OrderItem obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.time)
       ..writeByte(1)
