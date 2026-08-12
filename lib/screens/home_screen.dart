@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:groceryvoicelist/screens/setting_screen.dart';
@@ -29,9 +31,11 @@ class _HomeScreenState extends State<HomeScreen> {
   final _searchCtrl = TextEditingController();
   int indexClick = 0;
   bool _showSearch = false;
+  Timer? _deleteSnackBarTimer;
 
   @override
   void dispose() {
+    _deleteSnackBarTimer?.cancel();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -94,9 +98,10 @@ class _HomeScreenState extends State<HomeScreen> {
     await grocery.deleteItem(id);
     voice.speak('$itemName removed');
 
-    if (!mounted) return;
+    if (!context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     messenger.clearSnackBars();
+    _deleteSnackBarTimer?.cancel();
     final controller = messenger.showSnackBar(
       SnackBar(
         content: Text('$itemName removed'),
@@ -107,13 +112,23 @@ class _HomeScreenState extends State<HomeScreen> {
             voice.speak('Restored $itemName');
           },
         ),
-        duration: const Duration(seconds: 4),
+        duration: const Duration(seconds: 3),
         dismissDirection: DismissDirection.horizontal,
       ),
     );
 
+    // SnackBars with actions can remain visible indefinitely when accessible
+    // navigation is enabled. Close this specific delete SnackBar explicitly so
+    // its Undo window is consistently three seconds on every device.
+    final dismissTimer = Timer(const Duration(seconds: 3), controller.close);
+    _deleteSnackBarTimer = dismissTimer;
+
     // Clear the undo entry once the snackbar window closes without undo
     controller.closed.then((reason) {
+      dismissTimer.cancel();
+      if (identical(_deleteSnackBarTimer, dismissTimer)) {
+        _deleteSnackBarTimer = null;
+      }
       if (reason != SnackBarClosedReason.action) {
         grocery.clearUndoStack();
       }

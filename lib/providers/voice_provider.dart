@@ -1,10 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../services/speech_service.dart';
 import '../services/tts_service.dart';
 import '../services/voice_parser.dart';
 import 'grocery_provider.dart';
 
-enum VoiceStatus { idle, listening, processing, done, error, permissionDenied }
+enum VoiceStatus {
+  idle,
+  preparing,
+  listening,
+  processing,
+  done,
+  error,
+  permissionDenied,
+}
 
 class VoiceProvider extends ChangeNotifier {
   final SpeechService _speech = SpeechService();
@@ -14,8 +25,12 @@ class VoiceProvider extends ChangeNotifier {
   String _liveTranscription = '';
   String _statusMessage = '';
   String _lastError = '';
-  String? _itemContextName; // pre-seeded item name when mic tapped on a list item
+  String? _itemContextName; // Pre-seeded when mic is tapped on a list item.
   bool _isInitialized = false;
+  bool _commandHandled = false;
+  int _sessionId = 0;
+  Timer? _finalizationTimer;
+  Timer? _resetTimer;
 
   VoiceStatus get status => _status;
   String get liveTranscription => _liveTranscription;
@@ -25,11 +40,23 @@ class VoiceProvider extends ChangeNotifier {
   bool get isListening => _status == VoiceStatus.listening;
   bool get isProcessing => _status == VoiceStatus.processing;
 
+  /// Warms the native recognizer without showing an unsolicited permission
+  /// prompt. First-time users are still prompted only after tapping the mic.
+  Future<void> warmUpIfPermitted() async {
+    if (_isInitialized) return;
+    final microphone = await Permission.microphone.status;
+    if (!microphone.isGranted) return;
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      final speech = await Permission.speech.status;
+      if (!speech.isGranted) return;
+    }
+    await initialize();
+  }
+
   Future<void> initialize() async {
     if (_isInitialized) return;
-    await _tts.initialize();
     final available = await _speech.initialize();
-    _isInitialized = true;
+    _isInitialized = available;
     if (!available) {
       _status = VoiceStatus.permissionDenied;
       _statusMessage = 'Microphone permission required';
@@ -37,76 +64,143 @@ class VoiceProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> startListening(GroceryProvider groceryProvider,
-      {String? itemContextName}) async {
-    if (!_isInitialized) await initialize();
-    if (_status == VoiceStatus.listening) return;
+  Future<void> startListening(
+    GroceryProvider groceryProvider, {
+    String? itemContextName,
+  }) async {
+    if (_status == VoiceStatus.listening ||
+        _status == VoiceStatus.preparing ||
+        _status == VoiceStatus.processing) {
+      return;
+    }
+
+    final sessionId = ++_sessionId;
+    _finalizationTimer?.cancel();
+    _resetTimer?.cancel();
+    unawaited(_tts.stop());
+
+    if (!_isInitialized) {
+      _status = VoiceStatus.preparing;
+      _statusMessage = 'Starting microphone…';
+      _lastError = '';
+      _itemContextName = itemContextName;
+      notifyListeners();
+      await initialize();
+    }
+    if (sessionId != _sessionId) return;
+    if (_status == VoiceStatus.permissionDenied) return;
 
     _liveTranscription = '';
     _statusMessage = 'Listening…';
     _lastError = '';
     _itemContextName = itemContextName;
+    _commandHandled = false;
     _status = VoiceStatus.listening;
     notifyListeners();
 
     await _speech.startListening(
-      localeId: 'en_IN',
       onResult: (text, isFinal) {
+        if (sessionId != _sessionId || _commandHandled) return;
         _liveTranscription = text;
         notifyListeners();
 
         if (isFinal && text.isNotEmpty) {
-          _processCommand(text, groceryProvider);
+          unawaited(_finalizeCommand(text, groceryProvider, sessionId));
         }
       },
       onStatus: (status) {
+        if (sessionId != _sessionId || _commandHandled) return;
         if (status == 'done' || status == 'notListening') {
-          if (_status == VoiceStatus.listening && _liveTranscription.isEmpty) {
-            _status = VoiceStatus.idle;
-            _statusMessage = '';
-            notifyListeners();
-          }
+          _scheduleFinalization(groceryProvider, sessionId);
         }
       },
       onError: (error) {
+        if (sessionId != _sessionId || _commandHandled) return;
         if (error != 'error_speech_timeout' && error != 'error_no_match') {
+          _finalizationTimer?.cancel();
           _lastError = error;
           _status = VoiceStatus.error;
           _statusMessage = 'Error: $error';
           notifyListeners();
+        } else if (_liveTranscription.trim().isNotEmpty) {
+          unawaited(
+            _finalizeCommand(_liveTranscription, groceryProvider, sessionId),
+          );
         } else {
-          _status = VoiceStatus.idle;
-          _statusMessage = '';
-          notifyListeners();
+          _setNoSpeechError();
         }
       },
     );
   }
 
   Future<void> stopListening(GroceryProvider groceryProvider) async {
-    await _speech.stopListening();
+    // Start processing the latest partial result immediately. Waiting for the
+    // native recognizer's final callback can otherwise make the Done button
+    // feel unresponsive.
+    unawaited(_speech.stopListening());
     if (_liveTranscription.isNotEmpty) {
-      await _processCommand(_liveTranscription, groceryProvider);
+      await _finalizeCommand(_liveTranscription, groceryProvider, _sessionId);
     } else {
-      _status = VoiceStatus.idle;
-      _statusMessage = '';
-      notifyListeners();
+      _setNoSpeechError();
     }
   }
 
   Future<void> cancelListening() async {
+    _sessionId++;
+    _finalizationTimer?.cancel();
+    _resetTimer?.cancel();
     await _speech.cancelListening();
     _status = VoiceStatus.idle;
     _liveTranscription = '';
     _statusMessage = '';
     _itemContextName = null;
+    _commandHandled = false;
     notifyListeners();
+  }
+
+  void _setNoSpeechError() {
+    _finalizationTimer?.cancel();
+    _lastError = 'No speech detected';
+    _status = VoiceStatus.error;
+    _statusMessage = 'No speech detected';
+    notifyListeners();
+  }
+
+  void _scheduleFinalization(GroceryProvider groceryProvider, int sessionId) {
+    if (_status != VoiceStatus.listening) return;
+    _finalizationTimer?.cancel();
+    // Some recognizers report `done` just before their last result. This tiny
+    // grace period preserves the last word without adding perceptible delay.
+    _finalizationTimer = Timer(const Duration(milliseconds: 120), () {
+      if (sessionId != _sessionId || _commandHandled) return;
+      final text = _liveTranscription.trim();
+      if (text.isEmpty) {
+        _setNoSpeechError();
+      } else {
+        unawaited(_finalizeCommand(text, groceryProvider, sessionId));
+      }
+    });
+  }
+
+  Future<void> _finalizeCommand(
+    String text,
+    GroceryProvider groceryProvider,
+    int sessionId,
+  ) async {
+    if (sessionId != _sessionId || _commandHandled || text.trim().isEmpty) {
+      return;
+    }
+    _finalizationTimer?.cancel();
+    unawaited(_speech.stopListening());
+    await _processCommand(text.trim(), groceryProvider);
   }
 
   Future<void> _processCommand(
     String text,
     GroceryProvider groceryProvider,
   ) async {
+    if (_commandHandled || text.trim().isEmpty) return;
+    _commandHandled = true;
     _status = VoiceStatus.processing;
     _statusMessage = 'Processing…';
     notifyListeners();
@@ -158,6 +252,16 @@ class VoiceProvider extends ChangeNotifier {
         }
         break;
 
+      case CommandAction.setQuantity:
+        if (command.itemName != null && command.quantity != null) {
+          feedback = await groceryProvider.setItemQuantity(
+            command.itemName!,
+            command.quantity!,
+            command.unit ?? 'piece',
+          );
+        }
+        break;
+
       case CommandAction.remove:
         final target = command.itemName ?? _itemContextName;
         if (target != null) {
@@ -195,18 +299,18 @@ class VoiceProvider extends ChangeNotifier {
     notifyListeners();
 
     // Speak confirmation
-    if (feedback != null) {
-      await _tts.speak(feedback);
-    }
+    if (feedback != null) unawaited(_tts.speak(feedback));
 
-    // Auto-reset to idle after a short delay
-    await Future.delayed(const Duration(seconds: 2));
-    if (_status == VoiceStatus.done) {
-      _status = VoiceStatus.idle;
-      _liveTranscription = '';
-      _statusMessage = '';
-      notifyListeners();
-    }
+    final completedSession = _sessionId;
+    _resetTimer = Timer(const Duration(seconds: 2), () {
+      if (_status == VoiceStatus.done && completedSession == _sessionId) {
+        _status = VoiceStatus.idle;
+        _liveTranscription = '';
+        _statusMessage = '';
+        _itemContextName = null;
+        notifyListeners();
+      }
+    });
   }
 
   Future<void> speak(String text) async {
@@ -215,6 +319,8 @@ class VoiceProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _finalizationTimer?.cancel();
+    _resetTimer?.cancel();
     _speech.dispose();
     _tts.dispose();
     super.dispose();

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../providers/order_provider.dart';
@@ -50,6 +52,7 @@ class _AppLoaderState extends State<_AppLoader> {
   }
 
   Future<void> _load() async {
+    unawaited(context.read<VoiceProvider>().warmUpIfPermitted());
     await context.read<GroceryProvider>().loadItems();
     if (mounted) setState(() => _loaded = true);
   }

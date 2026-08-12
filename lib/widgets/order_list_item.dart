@@ -32,6 +32,7 @@ class OrderListItemItem extends StatelessWidget {
 
     return Slidable(
       key: ValueKey('order-${orderItem.orderId}'),
+      enabled: !isActive,
       endActionPane: ActionPane(
         motion: const BehindMotion(),
         extentRatio: .25,

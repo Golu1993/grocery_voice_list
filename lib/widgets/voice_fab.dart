@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -15,12 +17,9 @@ class VoiceFab extends StatefulWidget {
     final voice = context.read<VoiceProvider>();
     final grocery = context.read<GroceryProvider>();
 
-    await voice.initialize();
-    await voice.startListening(grocery, itemContextName: itemContextName);
-
-    if (!context.mounted) return;
-
-    await showModalBottomSheet<void>(
+    // Show feedback immediately; speech initialization and permission checks
+    // continue in the background instead of blocking the sheet animation.
+    final sheet = showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -32,6 +31,13 @@ class VoiceFab extends StatefulWidget {
         child: const ListeningOverlay(),
       ),
     );
+
+    unawaited(voice.startListening(grocery, itemContextName: itemContextName));
+    await sheet;
+    if (voice.status == VoiceStatus.listening ||
+        voice.status == VoiceStatus.preparing) {
+      await voice.cancelListening();
+    }
   }
 
   @override
@@ -58,9 +64,7 @@ class _VoiceFabState extends State<VoiceFab> {
       child: FloatingActionButton(
         backgroundColor: colorScheme.primary,
         foregroundColor: colorScheme.onPrimary,
-        onPressed: () => {
-          print('============'),
-          VoiceFab.openSheet(context)},
+        onPressed: () => VoiceFab.openSheet(context),
         child: const Icon(Icons.mic, size: 35),
       ),
     );

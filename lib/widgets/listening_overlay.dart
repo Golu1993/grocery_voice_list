@@ -18,6 +18,7 @@ class _ListeningOverlayState extends State<ListeningOverlay>
   late AnimationController _waveController;
   bool _autoDismissScheduled = false;
   bool _retryRequested = false;
+  VoiceProvider? _voiceProvider;
 
   @override
   void initState() {
@@ -36,16 +37,21 @@ class _ListeningOverlayState extends State<ListeningOverlay>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    context.read<VoiceProvider>().addListener(_onVoiceStatusChanged);
+    final voice = context.read<VoiceProvider>();
+    if (identical(_voiceProvider, voice)) return;
+    _voiceProvider?.removeListener(_onVoiceStatusChanged);
+    _voiceProvider = voice;
+    voice.addListener(_onVoiceStatusChanged);
   }
 
   void _onVoiceStatusChanged() {
     if (!mounted) return;
     final voice = context.read<VoiceProvider>();
-    if ((voice.status == VoiceStatus.done || voice.status == VoiceStatus.error)
-        && !_autoDismissScheduled) {
+    if ((voice.status == VoiceStatus.done ||
+            voice.status == VoiceStatus.error) &&
+        !_autoDismissScheduled) {
       _autoDismissScheduled = true;
-      Future.delayed(const Duration(milliseconds: 1800), () {
+      Future.delayed(const Duration(milliseconds: 1400), () {
         if (mounted && !_retryRequested) Navigator.of(context).pop();
       });
     }
@@ -56,17 +62,14 @@ class _ListeningOverlayState extends State<ListeningOverlay>
     _autoDismissScheduled = false;
     final voice = context.read<VoiceProvider>();
     final grocery = context.read<GroceryProvider>();
-    await voice.startListening(grocery,
-        itemContextName: voice.itemContextName);
+    await voice.startListening(grocery, itemContextName: voice.itemContextName);
     if (mounted) setState(() => _retryRequested = false);
   }
 
   @override
   void dispose() {
     // Remove listener safely — provider may already be gone
-    try {
-      context.read<VoiceProvider>().removeListener(_onVoiceStatusChanged);
-    } catch (_) {}
+    _voiceProvider?.removeListener(_onVoiceStatusChanged);
     _pulseController.dispose();
     _waveController.dispose();
     super.dispose();
@@ -182,7 +185,10 @@ class _ListeningOverlayState extends State<ListeningOverlay>
                 icon: const Icon(Icons.close_rounded),
                 label: const Text('Close'),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(24),
                   ),
@@ -199,7 +205,10 @@ class _ListeningOverlayState extends State<ListeningOverlay>
                   icon: const Icon(Icons.stop_rounded),
                   label: const Text('Done'),
                   style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(24),
                     ),
@@ -213,7 +222,10 @@ class _ListeningOverlayState extends State<ListeningOverlay>
                   icon: const Icon(Icons.mic_rounded),
                   label: const Text('Retry'),
                   style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(24),
                     ),
@@ -229,7 +241,7 @@ class _ListeningOverlayState extends State<ListeningOverlay>
                 ? 'Say: "add one more kg" • "mark done" • "delete" • "change to 500g"'
                 : 'Try: "Add 2 kg potatoes" • "Doodh chahiye" • "Remove onions"',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
             ),
             textAlign: TextAlign.center,
           ),
@@ -252,8 +264,9 @@ class _ListeningOverlayState extends State<ListeningOverlay>
                 height: 80 + _pulseController.value * 20,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: colorScheme.primary
-                      .withOpacity(0.08 * (1 - _pulseController.value)),
+                  color: colorScheme.primary.withValues(
+                    alpha: 0.08 * (1 - _pulseController.value),
+                  ),
                 ),
               ),
               // Middle ring
@@ -262,7 +275,7 @@ class _ListeningOverlayState extends State<ListeningOverlay>
                 height: 72,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: colorScheme.primary.withOpacity(0.15),
+                  color: colorScheme.primary.withValues(alpha: 0.15),
                 ),
               ),
               // Inner icon
@@ -274,7 +287,7 @@ class _ListeningOverlayState extends State<ListeningOverlay>
                   color: colorScheme.primary,
                   boxShadow: [
                     BoxShadow(
-                      color: colorScheme.primary.withOpacity(0.3),
+                      color: colorScheme.primary.withValues(alpha: 0.3),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -303,7 +316,8 @@ class _ListeningOverlayState extends State<ListeningOverlay>
       );
     }
 
-    if (voice.status == VoiceStatus.processing) {
+    if (voice.status == VoiceStatus.preparing ||
+        voice.status == VoiceStatus.processing) {
       return Container(
         width: 64,
         height: 64,
@@ -313,7 +327,10 @@ class _ListeningOverlayState extends State<ListeningOverlay>
         ),
         child: const Padding(
           padding: EdgeInsets.all(16),
-          child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            color: Colors.white,
+          ),
         ),
       );
     }
@@ -349,12 +366,18 @@ class _ListeningOverlayState extends State<ListeningOverlay>
         shape: BoxShape.circle,
         color: colorScheme.surfaceContainerHigh,
       ),
-      child: Icon(Icons.mic_off_rounded, color: colorScheme.onSurfaceVariant, size: 30),
+      child: Icon(
+        Icons.mic_off_rounded,
+        color: colorScheme.onSurfaceVariant,
+        size: 30,
+      ),
     );
   }
 
   String _statusText(VoiceProvider voice) {
     switch (voice.status) {
+      case VoiceStatus.preparing:
+        return 'Starting microphone…';
       case VoiceStatus.listening:
         return 'Listening…';
       case VoiceStatus.processing:
@@ -393,7 +416,7 @@ class _WaveBars extends StatelessWidget {
             width: 4,
             height: height,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.7),
+              color: color.withValues(alpha: 0.7),
               borderRadius: BorderRadius.circular(2),
             ),
           ),

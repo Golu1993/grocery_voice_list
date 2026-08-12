@@ -84,7 +84,10 @@ class GroceryProvider extends ChangeNotifier {
     if (existing != null) {
       // Merge quantities if same or compatible units
       final merged = UnitConverter.mergeQuantities(
-        existing.quantity, existing.unit, quantity, unit,
+        existing.quantity,
+        existing.unit,
+        quantity,
+        unit,
       );
       if (merged != null) {
         existing.quantity = merged;
@@ -111,7 +114,11 @@ class GroceryProvider extends ChangeNotifier {
     return 'Added ${UnitConverter.formatQuantity(quantity, unit)} $name';
   }
 
-  Future<String?> addMoreToItem(String name, double quantity, String unit) async {
+  Future<String?> addMoreToItem(
+    String name,
+    double quantity,
+    String unit,
+  ) async {
     final item = _findItemByName(name);
     if (item == null) {
       // Item doesn't exist, just add it
@@ -119,13 +126,17 @@ class GroceryProvider extends ChangeNotifier {
         name: name,
         quantity: quantity,
         unit: unit,
-        categoryKey: VoiceParser.parse('add $name').categoryKey ??
+        categoryKey:
+            VoiceParser.parse('add $name').categoryKey ??
             GroceryCategory.other.storageKey,
       );
       return 'Added $name (new item)';
     }
     final merged = UnitConverter.mergeQuantities(
-      item.quantity, item.unit, quantity, unit,
+      item.quantity,
+      item.unit,
+      quantity,
+      unit,
     );
     if (merged != null) {
       item.quantity = merged;
@@ -136,7 +147,11 @@ class GroceryProvider extends ChangeNotifier {
     return 'Could not update ${item.name} — incompatible units';
   }
 
-  Future<String?> subtractFromItem(String name, double quantity, String unit) async {
+  Future<String?> subtractFromItem(
+    String name,
+    double quantity,
+    String unit,
+  ) async {
     final item = _findItemByName(name);
     if (item == null) return 'Item "$name" not found in the list';
 
@@ -162,6 +177,22 @@ class GroceryProvider extends ChangeNotifier {
     await HiveService.save(item);
     notifyListeners();
     return 'Updated ${item.name}: ${UnitConverter.formatQuantity(newQty, item.unit)}';
+  }
+
+  Future<String?> setItemQuantity(
+    String name,
+    double quantity,
+    String unit,
+  ) async {
+    final item = _findItemByName(name);
+    if (item == null) return 'Item "$name" not found in the list';
+    if (quantity <= 0) return deleteItem(item.id);
+
+    item.quantity = quantity;
+    item.unit = unit;
+    await HiveService.save(item);
+    notifyListeners();
+    return 'Updated ${item.name}: ${UnitConverter.formatQuantity(quantity, unit)}';
   }
 
   Future<String?> updateItem(GroceryItem updated) async {
@@ -193,7 +224,10 @@ class GroceryProvider extends ChangeNotifier {
   }
 
   Future<String?> toggleChecked(String id) async {
-    final item = _items.firstWhere((i) => i.id == id, orElse: () => throw StateError(''));
+    final item = _items.firstWhere(
+      (i) => i.id == id,
+      orElse: () => throw StateError(''),
+    );
     item.isChecked = !item.isChecked;
     await HiveService.save(item);
     _sortItems();
@@ -260,9 +294,7 @@ class GroceryProvider extends ChangeNotifier {
 
   GroceryItem? _findItemByName(String name) {
     try {
-      return _items.firstWhere(
-        (i) => VoiceParser.itemNamesMatch(i.name, name),
-      );
+      return _items.firstWhere((i) => VoiceParser.itemNamesMatch(i.name, name));
     } catch (_) {
       return null;
     }

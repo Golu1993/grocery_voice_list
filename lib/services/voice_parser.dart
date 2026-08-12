@@ -1,6 +1,17 @@
 import '../utils/constants.dart';
 
-enum CommandAction { add, addMore, remove, subtractQuantity, check, uncheck, clear, undo, unknown }
+enum CommandAction {
+  add,
+  addMore,
+  remove,
+  subtractQuantity,
+  setQuantity,
+  check,
+  uncheck,
+  clear,
+  undo,
+  unknown,
+}
 
 class ParsedCommand {
   final CommandAction action;
@@ -84,6 +95,14 @@ class VoiceParser {
     'kum': CommandAction.subtractQuantity,
   };
 
+  static const Map<String, CommandAction> _updateKeywords = {
+    'increase': CommandAction.setQuantity,
+    'update': CommandAction.setQuantity,
+    'change': CommandAction.setQuantity,
+    'set': CommandAction.setQuantity,
+    'make': CommandAction.setQuantity,
+  };
+
   static const Map<String, CommandAction> _checkKeywords = {
     'check': CommandAction.check,
     'tick': CommandAction.check,
@@ -116,18 +135,36 @@ class VoiceParser {
 
   // ── Unit keywords ─────────────────────────────────────────────────────────
   static const Map<String, String> _unitKeywords = {
-    'kg': 'kg', 'kilo': 'kg', 'kilos': 'kg', 'kilogram': 'kg', 'kilograms': 'kg',
+    'kg': 'kg',
+    'kilo': 'kg',
+    'kilos': 'kg',
+    'kilogram': 'kg',
+    'kilograms': 'kg',
     'kgs': 'kg',
     'g': 'g', 'gram': 'g', 'grams': 'g', 'gm': 'g', 'gms': 'g', 'grm': 'g',
-    'l': 'l', 'litre': 'l', 'litres': 'l', 'liter': 'l', 'liters': 'l', 'lt': 'l',
+    'l': 'l',
+    'litre': 'l',
+    'litres': 'l',
+    'liter': 'l',
+    'liters': 'l',
+    'lt': 'l',
     'ml': 'ml', 'millilitre': 'ml', 'millilitres': 'ml', 'milliliter': 'ml',
     'milliliters': 'ml',
     'piece': 'piece', 'pieces': 'piece', 'pc': 'piece', 'pcs': 'piece',
     'nos': 'piece', 'number': 'piece', 'count': 'piece', 'item': 'piece',
-    'packet': 'packet', 'packets': 'packet', 'pack': 'packet', 'packs': 'packet',
-    'sachet': 'packet', 'sachets': 'packet', 'pouch': 'packet', 'pouches': 'packet',
+    'packet': 'packet',
+    'packets': 'packet',
+    'pack': 'packet',
+    'packs': 'packet',
+    'sachet': 'packet',
+    'sachets': 'packet',
+    'pouch': 'packet',
+    'pouches': 'packet',
     'dozen': 'dozen', 'doz': 'dozen',
-    'bundle': 'bundle', 'bundles': 'bundle', 'bunch': 'bundle', 'bunches': 'bundle',
+    'bundle': 'bundle',
+    'bundles': 'bundle',
+    'bunch': 'bundle',
+    'bunches': 'bundle',
     'bottle': 'bottle', 'bottles': 'bottle',
     'can': 'can', 'cans': 'can', 'tin': 'can', 'tins': 'can',
     // Hindi romanized
@@ -151,7 +188,9 @@ class VoiceParser {
     'matar': 'peas', 'mutter': 'peas', 'matar dana': 'peas',
     'bhindi': 'okra', 'bhende': 'okra',
     'baingan': 'brinjal', 'bengan': 'brinjal', 'baingun': 'brinjal',
-    'gobhi': 'cauliflower', 'phool gobhi': 'cauliflower', 'ful gobhi': 'cauliflower',
+    'gobhi': 'cauliflower',
+    'phool gobhi': 'cauliflower',
+    'ful gobhi': 'cauliflower',
     'patta gobhi': 'cabbage', 'band gobhi': 'cabbage',
     'shimla mirch': 'capsicum', 'simla mirch': 'capsicum',
     'mirchi': 'chilli', 'mirch': 'chilli', 'hari mirch': 'green chilli',
@@ -282,17 +321,25 @@ class VoiceParser {
     'ginger': GroceryCategory.vegetables, 'carrot': GroceryCategory.vegetables,
     'spinach': GroceryCategory.vegetables, 'peas': GroceryCategory.vegetables,
     'okra': GroceryCategory.vegetables, 'brinjal': GroceryCategory.vegetables,
-    'cauliflower': GroceryCategory.vegetables, 'capsicum': GroceryCategory.vegetables,
-    'cucumber': GroceryCategory.vegetables, 'pumpkin': GroceryCategory.vegetables,
-    'radish': GroceryCategory.vegetables, 'beetroot': GroceryCategory.vegetables,
+    'cauliflower': GroceryCategory.vegetables,
+    'capsicum': GroceryCategory.vegetables,
+    'cucumber': GroceryCategory.vegetables,
+    'pumpkin': GroceryCategory.vegetables,
+    'radish': GroceryCategory.vegetables,
+    'beetroot': GroceryCategory.vegetables,
     'cabbage': GroceryCategory.vegetables, 'chilli': GroceryCategory.vegetables,
     'coriander': GroceryCategory.vegetables, 'mint': GroceryCategory.vegetables,
-    'curry leaves': GroceryCategory.vegetables, 'bitter gourd': GroceryCategory.vegetables,
-    'bottle gourd': GroceryCategory.vegetables, 'fenugreek': GroceryCategory.vegetables,
-    'beans': GroceryCategory.vegetables, 'jackfruit': GroceryCategory.vegetables,
-    'ridge gourd': GroceryCategory.vegetables, 'taro': GroceryCategory.vegetables,
+    'curry leaves': GroceryCategory.vegetables,
+    'bitter gourd': GroceryCategory.vegetables,
+    'bottle gourd': GroceryCategory.vegetables,
+    'fenugreek': GroceryCategory.vegetables,
+    'beans': GroceryCategory.vegetables,
+    'jackfruit': GroceryCategory.vegetables,
+    'ridge gourd': GroceryCategory.vegetables,
+    'taro': GroceryCategory.vegetables,
     'yam': GroceryCategory.vegetables, 'corn': GroceryCategory.vegetables,
-    'green chilli': GroceryCategory.vegetables, 'red chilli': GroceryCategory.vegetables,
+    'green chilli': GroceryCategory.vegetables,
+    'red chilli': GroceryCategory.vegetables,
     'mushroom': GroceryCategory.vegetables,
     // Fruits
     'apple': GroceryCategory.fruits, 'banana': GroceryCategory.fruits,
@@ -314,10 +361,12 @@ class VoiceParser {
     'khoya': GroceryCategory.dairy, 'ice cream': GroceryCategory.dairy,
     'dalda': GroceryCategory.dairy,
     // Meat & Eggs
-    'chicken': GroceryCategory.meatAndEggs, 'mutton': GroceryCategory.meatAndEggs,
+    'chicken': GroceryCategory.meatAndEggs,
+    'mutton': GroceryCategory.meatAndEggs,
     'fish': GroceryCategory.meatAndEggs, 'prawns': GroceryCategory.meatAndEggs,
     'egg': GroceryCategory.meatAndEggs, 'eggs': GroceryCategory.meatAndEggs,
-    'minced meat': GroceryCategory.meatAndEggs, 'beef': GroceryCategory.meatAndEggs,
+    'minced meat': GroceryCategory.meatAndEggs,
+    'beef': GroceryCategory.meatAndEggs,
     'pork': GroceryCategory.meatAndEggs,
     // Bakery
     'bread': GroceryCategory.bakery, 'roti': GroceryCategory.bakery,
@@ -330,7 +379,8 @@ class VoiceParser {
     'tea': GroceryCategory.beverages, 'coffee': GroceryCategory.beverages,
     'juice': GroceryCategory.beverages, 'water': GroceryCategory.beverages,
     'soda': GroceryCategory.beverages, 'cold drink': GroceryCategory.beverages,
-    'lemonade': GroceryCategory.beverages, 'coconut water': GroceryCategory.beverages,
+    'lemonade': GroceryCategory.beverages,
+    'coconut water': GroceryCategory.beverages,
     'tea leaves': GroceryCategory.beverages,
     // Snacks
     'chips': GroceryCategory.snacks, 'namkeen': GroceryCategory.snacks,
@@ -340,16 +390,23 @@ class VoiceParser {
     'biscuits': GroceryCategory.snacks,
     // Cleaning
     'soap': GroceryCategory.cleaning, 'detergent': GroceryCategory.cleaning,
-    'dish soap': GroceryCategory.cleaning, 'floor cleaner': GroceryCategory.cleaning,
+    'dish soap': GroceryCategory.cleaning,
+    'floor cleaner': GroceryCategory.cleaning,
     'phenyl': GroceryCategory.cleaning, 'vim': GroceryCategory.cleaning,
-    'washing powder': GroceryCategory.cleaning, 'broom': GroceryCategory.cleaning,
+    'washing powder': GroceryCategory.cleaning,
+    'broom': GroceryCategory.cleaning,
     'mop': GroceryCategory.cleaning,
     // Personal Care
-    'shampoo': GroceryCategory.personalCare, 'conditioner': GroceryCategory.personalCare,
-    'face wash': GroceryCategory.personalCare, 'toothpaste': GroceryCategory.personalCare,
-    'toothbrush': GroceryCategory.personalCare, 'lotion': GroceryCategory.personalCare,
-    'body powder': GroceryCategory.personalCare, 'talcum powder': GroceryCategory.personalCare,
-    'hair oil': GroceryCategory.personalCare, 'bath soap': GroceryCategory.personalCare,
+    'shampoo': GroceryCategory.personalCare,
+    'conditioner': GroceryCategory.personalCare,
+    'face wash': GroceryCategory.personalCare,
+    'toothpaste': GroceryCategory.personalCare,
+    'toothbrush': GroceryCategory.personalCare,
+    'lotion': GroceryCategory.personalCare,
+    'body powder': GroceryCategory.personalCare,
+    'talcum powder': GroceryCategory.personalCare,
+    'hair oil': GroceryCategory.personalCare,
+    'bath soap': GroceryCategory.personalCare,
   };
 
   // ── Public parse method ────────────────────────────────────────────────────
@@ -366,12 +423,25 @@ class VoiceParser {
     }
 
     // Handle clear
-    if (_containsWord(text, ['clear all', 'clear list', 'start fresh', 'sab hatao', 'sab delete'])) {
+    if (_containsWord(text, [
+      'clear all',
+      'clear list',
+      'start fresh',
+      'sab hatao',
+      'sab delete',
+    ])) {
       return ParsedCommand(action: CommandAction.clear, rawText: rawText);
     }
 
     // Detect "more" modifier for addMore
-    final hasMore = _containsWord(text, ['more', 'aur', 'zyada', 'extra', 'additional']);
+    final hasMore = _containsWord(text, [
+      'more',
+      'aur',
+      'zyada',
+      'extra',
+      'additional',
+    ]);
+    final setsExactQuantity = _wordsContain(text, 'to');
 
     // Detect language hints
     final isHindiContext = _isHindiText(text);
@@ -385,6 +455,13 @@ class VoiceParser {
       final w = words[i];
       if (_subtractKeywords.containsKey(w)) {
         action = CommandAction.subtractQuantity;
+        actionIdx = i;
+        break;
+      }
+      if (_updateKeywords.containsKey(w)) {
+        action = setsExactQuantity
+            ? CommandAction.setQuantity
+            : CommandAction.addMore;
         actionIdx = i;
         break;
       }
@@ -411,6 +488,13 @@ class VoiceParser {
         final w = words[i];
         if (_subtractKeywords.containsKey(w)) {
           action = CommandAction.subtractQuantity;
+          actionIdx = i;
+          break;
+        }
+        if (_updateKeywords.containsKey(w)) {
+          action = setsExactQuantity
+              ? CommandAction.setQuantity
+              : CommandAction.addMore;
           actionIdx = i;
           break;
         }
@@ -442,9 +526,27 @@ class VoiceParser {
     final remaining = List<String>.from(words);
     if (actionIdx >= 0) remaining.removeAt(actionIdx);
     // Also remove 'more', 'aur', 'mark', 'as', 'done' helper words
-    remaining.removeWhere((w) =>
-        ['more', 'aur', 'zyada', 'extra', 'additional', 'mark', 'as', 'done',
-         'please', 'some', 'the', 'a', 'an', 'and', 'or'].contains(w));
+    remaining.removeWhere(
+      (w) => [
+        'more',
+        'aur',
+        'zyada',
+        'extra',
+        'additional',
+        'mark',
+        'as',
+        'done',
+        'please',
+        'some',
+        'the',
+        'a',
+        'an',
+        'and',
+        'or',
+        'to',
+        'by',
+      ].contains(w),
+    );
 
     // Extract quantity
     double? quantity;
@@ -464,6 +566,10 @@ class VoiceParser {
       action = CommandAction.subtractQuantity;
     }
 
+    if (action == CommandAction.setQuantity && quantity == null) {
+      return ParsedCommand(action: CommandAction.unknown, rawText: rawText);
+    }
+
     // Extract unit
     String? unit;
     int? unitIdx;
@@ -478,7 +584,12 @@ class VoiceParser {
 
     // What remains is the item name
     if (remaining.isEmpty) {
-      return ParsedCommand(action: CommandAction.unknown, rawText: rawText);
+      return ParsedCommand(
+        action: action,
+        quantity: quantity ?? 1.0,
+        unit: unit,
+        rawText: rawText,
+      );
     }
 
     // Try multi-word Hindi item first
@@ -508,19 +619,46 @@ class VoiceParser {
     return words.any((w) => text.contains(w));
   }
 
+  static bool _wordsContain(String text, String word) {
+    return RegExp('(^|\\s)${RegExp.escape(word)}(\\s|\$)').hasMatch(text);
+  }
+
   static bool _isHindiText(String text) {
     if (RegExp(r'[ऀ-ॿ]').hasMatch(text)) return true;
     const hindiMarkers = [
-      'aloo', 'doodh', 'pyaz', 'tamatar', 'anda', 'chai',
-      'jodo', 'daalo', 'hatao', 'chahiye', 'mangao',
-      'teen', 'char', 'paanch', 'chhe', 'saat', 'aath', 'nau',
-      'das', 'adha', 'aadha', 'ek ', ' ek',
+      'aloo',
+      'doodh',
+      'pyaz',
+      'tamatar',
+      'anda',
+      'chai',
+      'jodo',
+      'daalo',
+      'hatao',
+      'chahiye',
+      'mangao',
+      'teen',
+      'char',
+      'paanch',
+      'chhe',
+      'saat',
+      'aath',
+      'nau',
+      'das',
+      'adha',
+      'aadha',
+      'ek ',
+      ' ek',
     ];
     return hindiMarkers.any((m) => text.contains(m));
   }
 
   static List<String> _tokenize(String text) {
     return text
+        .replaceAllMapped(
+          RegExp(r'(\d+(?:\.\d+)?)(kg|kgs|g|gm|gms|l|lt|ml|pc|pcs)\b'),
+          (match) => '${match.group(1)} ${match.group(2)}',
+        )
         .replaceAll(RegExp(r'[^\w\s]'), ' ')
         .split(RegExp(r'\s+'))
         .where((w) => w.isNotEmpty)
@@ -565,8 +703,17 @@ class VoiceParser {
 
   static String _defaultUnit(GroceryCategory category, String itemName) {
     // Liquids
-    if (['milk', 'oil', 'buttermilk', 'juice', 'water', 'soda',
-         'coconut water', 'ghee', 'cream'].any((w) => itemName.contains(w))) {
+    if ([
+      'milk',
+      'oil',
+      'buttermilk',
+      'juice',
+      'water',
+      'soda',
+      'coconut water',
+      'ghee',
+      'cream',
+    ].any((w) => itemName.contains(w))) {
       return 'l';
     }
     // Weight items
@@ -574,8 +721,16 @@ class VoiceParser {
         category == GroceryCategory.fruits) {
       return 'kg';
     }
-    if (['flour', 'rice', 'lentils', 'sugar', 'salt', 'semolina',
-         'dal', 'wheat'].any((w) => itemName.contains(w))) {
+    if ([
+      'flour',
+      'rice',
+      'lentils',
+      'sugar',
+      'salt',
+      'semolina',
+      'dal',
+      'wheat',
+    ].any((w) => itemName.contains(w))) {
       return 'kg';
     }
     // Packaged items
