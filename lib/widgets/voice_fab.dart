@@ -1,11 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../features/smooth_speech_to_text/smooth_grocery_voice_widget.dart';
 import '../providers/grocery_provider.dart';
-import '../providers/voice_provider.dart';
-import 'listening_overlay.dart';
 
 class VoiceFab extends StatefulWidget {
   const VoiceFab({super.key});
@@ -14,30 +11,24 @@ class VoiceFab extends StatefulWidget {
     BuildContext context, {
     String? itemContextName,
   }) async {
-    final voice = context.read<VoiceProvider>();
     final grocery = context.read<GroceryProvider>();
 
-    // Show feedback immediately; speech initialization and permission checks
-    // continue in the background instead of blocking the sheet animation.
-    final sheet = showModalBottomSheet<void>(
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => MultiProvider(
-        providers: [
-          ChangeNotifierProvider.value(value: voice),
-          ChangeNotifierProvider.value(value: grocery),
-        ],
-        child: const ListeningOverlay(),
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: SmoothGroceryVoiceWidget(
+            groceryProvider: grocery,
+            itemContextName: itemContextName,
+            onClose: () => Navigator.pop(sheetContext),
+          ),
+        ),
       ),
     );
-
-    unawaited(voice.startListening(grocery, itemContextName: itemContextName));
-    await sheet;
-    if (voice.status == VoiceStatus.listening ||
-        voice.status == VoiceStatus.preparing) {
-      await voice.cancelListening();
-    }
   }
 
   @override
