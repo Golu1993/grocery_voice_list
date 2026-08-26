@@ -50,20 +50,81 @@ void main() {
     expect(submittedPhrases, isEmpty);
     controller.dispose();
   });
+
+  test('can submit the latest partial phrase when Done is tapped', () async {
+    final recognizer = _FakeSmoothSpeechRecognizer();
+    final submittedPhrases = <String>[];
+    final controller = SmoothSpeechToTextController(
+      recognizer: recognizer,
+      onFinalPhrase: submittedPhrases.add,
+    );
+
+    await controller.start();
+    recognizer.result('add two kilos of rice', false);
+    await controller.stop(submitPendingPhrase: true);
+
+    expect(controller.transcript, 'add two kilos of rice');
+    expect(submittedPhrases, ['add two kilos of rice']);
+    expect(controller.state, SmoothSpeechState.idle);
+    controller.dispose();
+  });
+
+  test('recovers when Android closes a completed speech session', () async {
+    final recognizer = _FakeSmoothSpeechRecognizer();
+    final submittedPhrases = <String>[];
+    final controller = SmoothSpeechToTextController(
+      recognizer: recognizer,
+      onFinalPhrase: submittedPhrases.add,
+    );
+
+    await controller.start();
+    recognizer.result('add milk', false);
+    recognizer.error('error_client');
+
+    expect(controller.state, isNot(SmoothSpeechState.error));
+    expect(controller.errorMessage, isEmpty);
+    expect(submittedPhrases, ['add milk']);
+
+    await Future<void>.delayed(const Duration(milliseconds: 1100));
+    expect(recognizer.listenCount, greaterThan(1));
+    expect(controller.state, SmoothSpeechState.listening);
+    controller.dispose();
+  });
+
+  test('still reports genuine permission failures', () async {
+    final recognizer = _FakeSmoothSpeechRecognizer();
+    final controller = SmoothSpeechToTextController(recognizer: recognizer);
+
+    await controller.start();
+    recognizer.error('error_permission');
+
+    expect(controller.state, SmoothSpeechState.error);
+    expect(controller.errorMessage, contains('device settings'));
+    controller.dispose();
+  });
 }
 
 class _FakeSmoothSpeechRecognizer implements SmoothSpeechRecognizer {
   SmoothSpeechResultCallback? _onResult;
+  SmoothSpeechErrorCallback? _onError;
   bool _listening = false;
+  int listenCount = 0;
 
   @override
   bool get isListening => _listening;
 
   void result(String words, bool isFinal) => _onResult?.call(words, isFinal);
 
+  void error(String error) {
+    _listening = false;
+    _onError?.call(error);
+  }
+
   @override
-  Future<bool> initialize({required SmoothSpeechErrorCallback onError}) async =>
-      true;
+  Future<bool> initialize({required SmoothSpeechErrorCallback onError}) async {
+    _onError = onError;
+    return true;
+  }
 
   @override
   Future<void> listen({
@@ -71,6 +132,7 @@ class _FakeSmoothSpeechRecognizer implements SmoothSpeechRecognizer {
     required SmoothSpeechLevelCallback onSoundLevel,
     String? localeId,
   }) async {
+    listenCount++;
     _onResult = onResult;
     _listening = true;
   }

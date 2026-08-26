@@ -12,6 +12,15 @@ void main() {
       expect(command.unit, 'kg');
     });
 
+    test('ignores natural filler words around an item', () {
+      final command = VoiceParser.parse('please add 2 kilos of rice for me');
+
+      expect(command.action, CommandAction.add);
+      expect(command.itemName, 'Rice');
+      expect(command.quantity, 2);
+      expect(command.unit, 'kg');
+    });
+
     test('adds a simple item with its local default unit', () {
       final command = VoiceParser.parse('add milk');
 

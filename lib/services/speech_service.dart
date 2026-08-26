@@ -42,6 +42,7 @@ class SpeechService {
         onStatus: _onStatus,
         debugLogging: false,
         finalTimeout: _finalTimeout,
+        options: [SpeechToText.androidNoBluetooth],
       );
       return _isAvailable;
     } finally {

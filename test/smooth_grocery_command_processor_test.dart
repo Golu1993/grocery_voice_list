@@ -11,10 +11,10 @@ void main() {
 
       final feedback = await processor.process('add 2 kg potatoes');
 
-    expect(grocery.name, 'Potatoes');
+      expect(grocery.name, 'Potatoes');
       expect(grocery.quantity, 2);
       expect(grocery.unit, 'kg');
-    expect(feedback, 'Added 2 kg Potatoes');
+      expect(feedback, 'Added 2 kg Potatoes');
     },
   );
 }

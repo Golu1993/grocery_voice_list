@@ -16,6 +16,7 @@ class SmoothSpeechToTextController extends ChangeNotifier {
 
   static const _watchdogInterval = Duration(milliseconds: 300);
   static const _restartDelay = Duration(milliseconds: 350);
+  static const _errorRecoveryDelay = Duration(milliseconds: 650);
 
   final SmoothSpeechRecognizer _recognizer;
   final ValueNotifier<double> soundLevel = ValueNotifier(0);
@@ -144,14 +145,22 @@ class SmoothSpeechToTextController extends ChangeNotifier {
 
   void _handleError(String error) {
     if (_disposed || !_wantsToListen) return;
-    final transient =
-        error == 'error_no_match' ||
-        error == 'error_speech_timeout' ||
-        error == 'error_busy';
+    final transient = _isRecoverableSessionError(error);
 
     if (transient) {
+      // Android can report error_client/error_busy while its previous short
+      // utterance is closing. That is a normal continuous-listening handoff,
+      // not a user-facing failure. Preserve the last words, fully release the
+      // old session, and let the watchdog open the next one after a brief
+      // native-recognizer cooldown.
       _finalizePendingPhrase();
-      _restartAfter = DateTime.now().add(_restartDelay);
+      _errorMessage = '';
+      soundLevel.value = 0;
+      _restartAfter = DateTime.now().add(_errorRecoveryDelay);
+      if (_state != SmoothSpeechState.starting) {
+        _setState(SmoothSpeechState.listening);
+      }
+      unawaited(_recognizer.cancel());
       return;
     }
 
@@ -163,6 +172,14 @@ class SmoothSpeechToTextController extends ChangeNotifier {
     _setState(SmoothSpeechState.error);
   }
 
+  bool _isRecoverableSessionError(String error) {
+    return error.contains('error_no_match') ||
+        error.contains('error_speech_timeout') ||
+        error.contains('error_busy') ||
+        error.contains('error_client') ||
+        error.contains('error_server_disconnected');
+  }
+
   void _handleSoundLevel(double level) {
     _minimumLevel = math.min(_minimumLevel, level);
     _maximumLevel = math.max(_maximumLevel, level);
@@ -172,13 +189,23 @@ class SmoothSpeechToTextController extends ChangeNotifier {
         : ((level - _minimumLevel) / range).clamp(0.0, 1.0);
   }
 
-  Future<void> stop() async {
+  /// Stops recognition and optionally submits the latest partial words.
+  ///
+  /// Native recognizers do not always send a final result before a user taps
+  /// Done. Grocery voice entry opts into [submitPendingPhrase] so the last
+  /// spoken item is not silently lost, while general dictation can still stop
+  /// without treating an unfinished phrase as a command.
+  Future<void> stop({bool submitPendingPhrase = false}) async {
     if (_disposed || (!_wantsToListen && !_state.isActive)) return;
     _wantsToListen = false;
     ++_generation;
     _watchdog?.cancel();
     _watchdog = null;
-    _commitPartial();
+    if (submitPendingPhrase) {
+      _finalizePendingPhrase();
+    } else {
+      _commitPartial();
+    }
     soundLevel.value = 0;
     _setState(SmoothSpeechState.stopping);
 

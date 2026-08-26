@@ -8,7 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 class Utility {
   static Future<String> appVersion() async {
     final info = await PackageInfo.fromPlatform();
-    return "${info.version} (${info.buildNumber})";
+    return info.version;
   }
 
   static Future<void> openPrivacyPolicy() async {

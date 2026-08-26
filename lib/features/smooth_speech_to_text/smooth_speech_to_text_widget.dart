@@ -25,8 +25,12 @@ class SmoothSpeechToTextWidget extends StatefulWidget {
     this.showMicrophoneButton = true,
     this.allowManualMicrophoneControl = true,
     this.clearAfterFinalPhrase = false,
+    this.submitPendingPhraseOnStop = false,
+    this.submitPendingPhraseOnClose = false,
     this.transcriptAreaHeight,
     this.activityMessage,
+    this.localeLabel,
+    this.centeredVoiceLayout = false,
   });
 
   final SmoothSpeechToTextController? controller;
@@ -42,8 +46,12 @@ class SmoothSpeechToTextWidget extends StatefulWidget {
   final bool showMicrophoneButton;
   final bool allowManualMicrophoneControl;
   final bool clearAfterFinalPhrase;
+  final bool submitPendingPhraseOnStop;
+  final bool submitPendingPhraseOnClose;
   final double? transcriptAreaHeight;
   final String? activityMessage;
+  final String? localeLabel;
+  final bool centeredVoiceLayout;
 
   @override
   State<SmoothSpeechToTextWidget> createState() =>
@@ -119,7 +127,11 @@ class _SmoothSpeechToTextWidgetState extends State<SmoothSpeechToTextWidget> {
   }
 
   Future<void> _close() async {
-    if (_controller.isActive) await _controller.stop();
+    if (_controller.isActive) {
+      await _controller.stop(
+        submitPendingPhrase: widget.submitPendingPhraseOnClose,
+      );
+    }
     widget.onClose?.call();
   }
 
@@ -147,148 +159,318 @@ class _SmoothSpeechToTextWidgetState extends State<SmoothSpeechToTextWidget> {
       child: SizedBox(
         height: widget.height,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
+          padding: widget.centeredVoiceLayout
+              ? const EdgeInsets.fromLTRB(16, 12, 16, 14)
+              : const EdgeInsets.fromLTRB(20, 18, 20, 22),
           child: Column(
             mainAxisSize: widget.height == null
                 ? MainAxisSize.min
                 : MainAxisSize.max,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      widget.title,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+              _buildHeader(theme, colors),
+              SizedBox(height: widget.centeredVoiceLayout ? 8 : 18),
+              if (widget.centeredVoiceLayout)
+                Expanded(
+                  child: _buildCenteredVoiceContent(
+                    theme,
+                    colors,
+                    state,
+                    active,
+                    hasRecognitionError,
                   ),
-                  if (widget.showTranscriptActions) ...[
-                    IconButton(
-                      tooltip: 'Clear transcript',
-                      onPressed: _controller.hasText ? _controller.clear : null,
-                      icon: const Icon(Icons.delete_outline_rounded),
-                    ),
-                    IconButton(
-                      tooltip: 'Copy transcript',
-                      onPressed: _controller.hasText ? _copyTranscript : null,
-                      icon: const Icon(Icons.copy_rounded),
-                    ),
-                  ],
-                  if (widget.onClose != null)
-                    FilledButton.tonalIcon(
-                      onPressed: _close,
-                      icon: const Icon(Icons.check_rounded, size: 18,color:  Colors.white,),
-                      label: const Text('Done',style: TextStyle(color: Colors.white),),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: colors.primary,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              if (widget.transcriptAreaHeight == null)
-                Expanded(child: _buildTranscriptArea(theme, colors, active))
-              else
-                SizedBox(
-                  height: widget.transcriptAreaHeight,
-                  child: _buildTranscriptArea(theme, colors, active),
-                ),
-              const SizedBox(height: 14),
-              Text(
-                hasRecognitionError
-                    ? _statusText(state)
-                    : widget.activityMessage ?? _statusText(state),
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: hasRecognitionError
-                      ? colors.error
-                      : colors.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 220),
-                child: active
-                    ? Padding(
-                        key: const ValueKey('listening-waveform'),
-                        padding: const EdgeInsets.only(top: 12),
-                        child: _ListeningWaveform(
-                          soundLevel: _controller.soundLevel,
-                          color: colors.primary,
-                        ),
-                      )
-                    : const SizedBox(
-                        key: ValueKey('listening-waveform-hidden'),
-                        height: 4,
-                      ),
-              ),
-              if (widget.showMicrophoneButton) ...[
+                )
+              else ...[
+                if (widget.transcriptAreaHeight == null)
+                  Expanded(child: _buildTranscriptArea(theme, colors, active))
+                else
+                  SizedBox(
+                    height: widget.transcriptAreaHeight,
+                    child: _buildTranscriptArea(theme, colors, active),
+                  ),
                 const SizedBox(height: 14),
-                ValueListenableBuilder<double>(
-                  valueListenable: _controller.soundLevel,
-                  builder: (context, level, child) {
-                    return TweenAnimationBuilder<double>(
-                      tween: Tween(end: active ? level : 0),
-                      duration: const Duration(milliseconds: 90),
-                      builder: (context, animatedLevel, _) => Container(
-                        width: 82 + (animatedLevel * 18),
-                        height: 82 + (animatedLevel * 18),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: colors.primary.withValues(
-                            alpha: active
-                                ? 0.10 + (animatedLevel * 0.12)
-                                : 0.07,
-                          ),
-                        ),
-                        child: child,
-                      ),
-                      child: IgnorePointer(
-                        ignoring: !widget.allowManualMicrophoneControl,
-                        child: SizedBox(
-                          width: 70,
-                          height: 70,
-                          child: FloatingActionButton(
-                            heroTag: null,
-                            elevation: active ? 3 : 1,
-                            tooltip: widget.allowManualMicrophoneControl
-                                ? active
-                                      ? 'Stop listening'
-                                      : 'Start listening'
-                                : 'Listening',
-                            onPressed: active
-                                ? _controller.stop
-                                : _controller.start,
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 160),
-                              child: Icon(
-                                widget.allowManualMicrophoneControl && active
-                                    ? Icons.stop_rounded
-                                    : Icons.mic_rounded,
-                                key: ValueKey(
-                                  '${widget.allowManualMicrophoneControl}-$active',
-                                ),
-                                size: 30,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                _buildStatusText(theme, colors, state, hasRecognitionError),
+                _buildWaveform(colors, active),
+                if (widget.localeLabel != null) ...[
+                  const SizedBox(height: 8),
+                  _buildLocaleLabel(theme, colors),
+                ],
+                if (widget.showMicrophoneButton) ...[
+                  const SizedBox(height: 14),
+                  _buildMicrophoneButton(colors, active),
+                ],
               ],
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHeader(ThemeData theme, ColorScheme colors) {
+    if (widget.centeredVoiceLayout) {
+      return SizedBox(
+        height: 42,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: widget.onClose == null ? 0 : 74,
+              ),
+              child: Text(
+                widget.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            if (widget.onClose != null)
+              Align(
+                alignment: Alignment.centerRight,
+                child: _buildDoneButton(colors, compact: true),
+              ),
+          ],
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            widget.title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        if (widget.showTranscriptActions) ...[
+          IconButton(
+            tooltip: 'Clear transcript',
+            onPressed: _controller.hasText ? _controller.clear : null,
+            icon: const Icon(Icons.delete_outline_rounded),
+          ),
+          IconButton(
+            tooltip: 'Copy transcript',
+            onPressed: _controller.hasText ? _copyTranscript : null,
+            icon: const Icon(Icons.copy_rounded),
+          ),
+        ],
+        if (widget.onClose != null) _buildDoneButton(colors),
+      ],
+    );
+  }
+
+  Widget _buildDoneButton(ColorScheme colors, {bool compact = false}) {
+    final style = FilledButton.styleFrom(
+      backgroundColor: colors.primary,
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 13 : 14,
+        vertical: compact ? 9 : 10,
+      ),
+      visualDensity: VisualDensity.compact,
+    );
+
+    if (compact) {
+      return FilledButton(
+        onPressed: _close,
+        style: style,
+        child: const Text('Done', style: TextStyle(color: Colors.white)),
+      );
+    }
+
+    return FilledButton.icon(
+      onPressed: _close,
+      icon: const Icon(Icons.check_rounded, size: 18, color: Colors.white),
+      label: const Text('Done', style: TextStyle(color: Colors.white)),
+      style: style,
+    );
+  }
+
+  Widget _buildCenteredVoiceContent(
+    ThemeData theme,
+    ColorScheme colors,
+    SmoothSpeechState state,
+    bool active,
+    bool hasRecognitionError,
+  ) {
+    final spokenText = _controller.transcript.trim();
+    final feedbackText = widget.activityMessage?.trim() ?? '';
+    final primaryText = hasRecognitionError
+        ? _statusText(state)
+        : spokenText.isNotEmpty
+        ? spokenText
+        : feedbackText.isNotEmpty
+        ? feedbackText
+        : state == SmoothSpeechState.starting
+        ? 'Starting microphone…'
+        : active
+        ? 'Speak now'
+        : 'Tap the microphone to speak';
+
+    return Column(
+      children: [
+        const Spacer(),
+        if (widget.showMicrophoneButton)
+          _buildMicrophoneButton(colors, active, prominent: true),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: SingleChildScrollView(
+            reverse: true,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              child: Text(
+                primaryText,
+                key: ValueKey(primaryText),
+                textAlign: TextAlign.center,
+                style:
+                    (feedbackText.isNotEmpty && spokenText.isEmpty
+                            ? theme.textTheme.titleSmall
+                            : theme.textTheme.titleLarge)
+                        ?.copyWith(
+                          color: hasRecognitionError
+                              ? colors.error
+                              : colors.onSurface,
+                          fontWeight: spokenText.isEmpty
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                          height: 1.35,
+                        ),
+              ),
+            ),
+          ),
+        ),
+        const Spacer(),
+        if (widget.localeLabel != null) _buildLocaleLabel(theme, colors),
+      ],
+    );
+  }
+
+  Widget _buildStatusText(
+    ThemeData theme,
+    ColorScheme colors,
+    SmoothSpeechState state,
+    bool hasRecognitionError,
+  ) {
+    return Text(
+      hasRecognitionError
+          ? _statusText(state)
+          : widget.activityMessage ?? _statusText(state),
+      textAlign: TextAlign.center,
+      style: theme.textTheme.titleMedium?.copyWith(
+        color: hasRecognitionError ? colors.error : colors.onSurfaceVariant,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+
+  Widget _buildWaveform(ColorScheme colors, bool active) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      child: active
+          ? Padding(
+              key: const ValueKey('listening-waveform'),
+              padding: const EdgeInsets.only(top: 8),
+              child: _ListeningWaveform(
+                soundLevel: _controller.soundLevel,
+                color: colors.primary,
+              ),
+            )
+          : const SizedBox(
+              key: ValueKey('listening-waveform-hidden'),
+              height: 50,
+            ),
+    );
+  }
+
+  Widget _buildLocaleLabel(ThemeData theme, ColorScheme colors) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.language_rounded, size: 16, color: colors.onSurfaceVariant),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            widget.localeLabel!,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colors.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMicrophoneButton(
+    ColorScheme colors,
+    bool active, {
+    bool prominent = false,
+  }) {
+    final buttonSize = prominent ? 78.0 : 70.0;
+    final haloSize = prominent ? 92.0 : 82.0;
+    final pulseGrowth = prominent ? 16.0 : 18.0;
+
+    return ValueListenableBuilder<double>(
+      valueListenable: _controller.soundLevel,
+      builder: (context, level, _) {
+        return TweenAnimationBuilder<double>(
+          tween: Tween(end: active ? level : 0),
+          duration: const Duration(milliseconds: 90),
+          builder: (context, animatedLevel, animatedChild) => Container(
+            width: haloSize + (animatedLevel * pulseGrowth),
+            height: haloSize + (animatedLevel * pulseGrowth),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: colors.primary.withValues(
+                alpha: active ? 0.10 + (animatedLevel * 0.12) : 0.07,
+              ),
+            ),
+            child: animatedChild,
+          ),
+          child: SizedBox(
+            width: buttonSize,
+            height: buttonSize,
+            child: FloatingActionButton(
+              heroTag: null,
+              elevation: active ? 3 : 1,
+              tooltip: widget.allowManualMicrophoneControl
+                  ? active
+                        ? 'Stop listening'
+                        : 'Start listening'
+                  : 'Listening',
+              onPressed: widget.allowManualMicrophoneControl
+                  ? active
+                        ? () => _controller.stop(
+                            submitPendingPhrase:
+                                widget.submitPendingPhraseOnStop,
+                          )
+                        : _controller.start
+                  : null,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 160),
+                child: Icon(
+                  prominent
+                      ? Icons.mic_rounded
+                      : widget.allowManualMicrophoneControl && active
+                      ? Icons.stop_rounded
+                      : Icons.mic_rounded,
+                  key: ValueKey('$prominent-$active'),
+                  size: prominent ? 38 : 30,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -323,7 +505,8 @@ class _SmoothSpeechToTextWidgetState extends State<SmoothSpeechToTextWidget> {
               ),
             )
           : Center(
-              child: Text('Start speaking naturally…',
+              child: Text(
+                'Start speaking naturally…',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: colors.onSurfaceVariant,

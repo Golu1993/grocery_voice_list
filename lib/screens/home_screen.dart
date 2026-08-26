@@ -144,6 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: colorScheme.surfaceContainerLowest,
       appBar: CustomAppBar(
         title: getTitle(indexClick),
+        showLogoInLeading: indexClick == 0,
         actions: [
           indexClick == 0
               ? IconButton(
@@ -311,7 +312,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String getTitle(int indexClick) {
     switch (indexClick) {
       case 0:
-        return 'Grocery Store';
+        return '';
       case 1:
         return 'My Orders';
       case 2:
@@ -363,7 +364,6 @@ class _HomeScreenState extends State<HomeScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Image.asset('images/trans_logo.webp', height: 60, width: 60),
             Expanded(child: SizedBox()),
             IconTextButton(
               icon: Icons.add,

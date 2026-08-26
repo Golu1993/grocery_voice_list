@@ -78,14 +78,17 @@ class _SmoothGroceryVoiceWidgetState extends State<SmoothGroceryVoiceWidget> {
   Widget build(BuildContext context) {
     return SmoothSpeechToTextWidget(
       autoStart: true,
-      title: widget.itemContextName == null
-          ? 'Add groceries by voice'
-          : 'Update ${widget.itemContextName}',
+      localeId: 'en_IN',
+      localeLabel: 'English (India)',
+      title: widget.itemContextName == null ? 'Add by voice' : 'Update item',
       height: widget.height,
+      centeredVoiceLayout: true,
       showTranscriptActions: false,
-      showMicrophoneButton: false,
+      showMicrophoneButton: true,
+      allowManualMicrophoneControl: true,
       clearAfterFinalPhrase: true,
-      transcriptAreaHeight: 94,
+      submitPendingPhraseOnStop: true,
+      submitPendingPhraseOnClose: true,
       activityMessage: _activityMessage,
       onFinalPhrase: _processFinalPhrase,
       onClose: _close,

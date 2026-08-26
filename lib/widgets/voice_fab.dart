@@ -1,10 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../features/smooth_speech_to_text/smooth_grocery_voice_widget.dart';
 import '../providers/grocery_provider.dart';
 
-class VoiceFab extends StatefulWidget {
+class VoiceFab extends StatelessWidget {
   const VoiceFab({super.key});
 
   static Future<void> openSheet(
@@ -13,37 +15,33 @@ class VoiceFab extends StatefulWidget {
   }) async {
     final grocery = context.read<GroceryProvider>();
 
-    await showModalBottomSheet<void>(
+    await showDialog<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: SmoothGroceryVoiceWidget(
-            groceryProvider: grocery,
-            itemContextName: itemContextName,
-            onClose: () => Navigator.pop(sheetContext),
+      barrierDismissible: false,
+      barrierColor: Colors.black54,
+      builder: (dialogContext) {
+        final screen = MediaQuery.sizeOf(dialogContext);
+        final dialogSize = math.min(
+          520.0,
+          math.min(screen.width - 32, screen.height - 96),
+        );
+
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          insetPadding: EdgeInsets.zero,
+          child: SizedBox.square(
+            dimension: dialogSize,
+            child: SmoothGroceryVoiceWidget(
+              groceryProvider: grocery,
+              itemContextName: itemContextName,
+              height: dialogSize,
+              onClose: () => Navigator.pop(dialogContext),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
-  }
-
-  @override
-  State<VoiceFab> createState() => _VoiceFabState();
-}
-
-class _VoiceFabState extends State<VoiceFab> {
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 
   @override
@@ -56,7 +54,8 @@ class _VoiceFabState extends State<VoiceFab> {
         backgroundColor: colorScheme.primary,
         foregroundColor: colorScheme.onPrimary,
         onPressed: () => VoiceFab.openSheet(context),
-        child: const Icon(Icons.mic, size: 35),
+        tooltip: 'Add groceries by voice',
+        child: const Icon(Icons.mic_rounded, size: 35),
       ),
     );
   }

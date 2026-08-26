@@ -1,29 +1,59 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:groceryvoicelist/app.dart';
+import 'package:groceryvoicelist/features/smooth_speech_to_text/smooth_speech_to_text.dart';
+import 'package:groceryvoicelist/providers/grocery_provider.dart';
+import 'package:groceryvoicelist/widgets/voice_fab.dart';
+import 'package:provider/provider.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const GroceryVoiceApp());
+  testWidgets('home voice action is visible and accessible', (tester) async {
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => GroceryProvider(),
+        child: const MaterialApp(
+          home: Scaffold(floatingActionButton: VoiceFab()),
+        ),
+      ),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.byIcon(Icons.mic_rounded), findsOneWidget);
+    expect(find.byTooltip('Add groceries by voice'), findsOneWidget);
   });
+
+  testWidgets(
+    'voice dialog centers mic with transcript below and Done at top',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SmoothSpeechToTextWidget(
+                height: 320,
+                title: 'Add by voice',
+                centeredVoiceLayout: true,
+                showTranscriptActions: false,
+                localeLabel: 'English (India)',
+                onClose: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final mic = find.byTooltip('Start listening');
+      final prompt = find.text('Tap the microphone to speak');
+      final done = find.text('Done');
+
+      expect(mic, findsOneWidget);
+      expect(prompt, findsOneWidget);
+      expect(done, findsOneWidget);
+      expect(
+        tester.getCenter(prompt).dy,
+        greaterThan(tester.getCenter(mic).dy),
+      );
+      expect(tester.getCenter(done).dx, greaterThan(tester.getCenter(mic).dx));
+      expect(tester.getCenter(done).dy, lessThan(tester.getCenter(mic).dy));
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
