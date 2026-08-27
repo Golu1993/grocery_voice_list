@@ -12,11 +12,13 @@ class OrderListItemItem extends StatelessWidget {
     required this.orderItem,
     required this.index,
     required this.onDelete,
+    required this.onShare,
   });
 
   final OrderItem orderItem;
   final int index;
   final VoidCallback onDelete;
+  final VoidCallback onShare;
 
   @override
   Widget build(BuildContext context) {
@@ -139,6 +141,16 @@ class OrderListItemItem extends StatelessWidget {
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         color: colors.onSurfaceVariant,
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.filled(
+                      onPressed: onShare,
+                      tooltip: 'Share this list as PDF',
+                      style: IconButton.styleFrom(
+                        minimumSize: const Size(40, 40),
+                        maximumSize: const Size(40, 40),
+                      ),
+                      icon: const Icon(Icons.share_rounded, size: 19),
                     ),
                   ],
                 ),

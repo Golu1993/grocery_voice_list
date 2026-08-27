@@ -1,11 +1,52 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:groceryvoicelist/features/smooth_speech_to_text/smooth_speech_to_text.dart';
+import 'package:groceryvoicelist/models/grocery_item.dart';
 import 'package:groceryvoicelist/providers/grocery_provider.dart';
+import 'package:groceryvoicelist/widgets/grocery_list_item.dart';
 import 'package:groceryvoicelist/widgets/voice_fab.dart';
 import 'package:provider/provider.dart';
 
 void main() {
+  testWidgets('grocery list item uses the compact home layout', (tester) async {
+    final item = GroceryItem(
+      id: 'milk',
+      name: 'Milk',
+      quantity: 2,
+      unit: 'l',
+      categoryKey: 'dairy',
+      createdAt: DateTime(2026),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 390,
+            child: ListView(
+              children: [
+                GroceryListItem(
+                  item: item,
+                  onToggle: () {},
+                  onDelete: () {},
+                  onEdit: () {},
+                  onVoice: () {},
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester.getSize(find.byType(GroceryListItem)).height,
+      lessThanOrEqualTo(60),
+    );
+    expect(find.byTooltip('Voice update'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('home voice action is visible and accessible', (tester) async {
     await tester.pumpWidget(
       ChangeNotifierProvider(

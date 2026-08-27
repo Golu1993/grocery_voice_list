@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:groceryvoicelist/widgets/order_list_item.dart';
 import 'package:provider/provider.dart';
 
-import '../models/order_item.dart';
 import '../providers/order_provider.dart';
 import '../utils/app_colors.dart';
+import 'grocery_pdf_preview_screen.dart';
 
 class MyOrdersScreen extends StatefulWidget {
   const MyOrdersScreen({super.key});
@@ -57,9 +57,19 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
           return ListView.builder(
             padding: const EdgeInsets.symmetric(vertical: 12),
             itemCount: provider.orders.length,
-            itemBuilder: (_, index) =>
-                OrderListItemItem(orderItem: provider.orders[index], index: index,
-                onDelete: ()=>{provider.removeOrder(index)},),
+            itemBuilder: (context, index) {
+              final order = provider.orders[index];
+              return OrderListItemItem(
+                orderItem: order,
+                index: index,
+                onDelete: () => provider.removeOrder(index),
+                onShare: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => GroceryPdfPreviewScreen(order: order),
+                  ),
+                ),
+              );
+            },
           );
         },
       ),

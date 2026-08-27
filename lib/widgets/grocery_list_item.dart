@@ -26,7 +26,7 @@ class GroceryListItem extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
       child: Slidable(
         key: ValueKey(item.id),
         endActionPane: ActionPane(
@@ -39,7 +39,9 @@ class GroceryListItem extends StatelessWidget {
               foregroundColor: colorScheme.onErrorContainer,
               icon: Icons.delete_rounded,
               label: 'Delete',
-              borderRadius: const BorderRadius.horizontal(right: Radius.circular(16)),
+              borderRadius: const BorderRadius.horizontal(
+                right: Radius.circular(14),
+              ),
             ),
           ],
         ),
@@ -53,7 +55,9 @@ class GroceryListItem extends StatelessWidget {
               foregroundColor: colorScheme.onPrimaryContainer,
               icon: Icons.edit_rounded,
               label: 'Edit',
-              borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
+              borderRadius: const BorderRadius.horizontal(
+                left: Radius.circular(14),
+              ),
             ),
           ],
         ),
@@ -93,47 +97,51 @@ class _ItemCard extends StatelessWidget {
         color: item.isChecked
             ? colorScheme.surfaceContainerLow
             : colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: item.isChecked
-              ? colorScheme.outlineVariant.withOpacity(0.5)
+              ? colorScheme.outlineVariant.withValues(alpha: 0.5)
               : colorScheme.outlineVariant,
         ),
       ),
       child: InkWell(
         onTap: onToggle,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         child: Padding(
-          padding: const EdgeInsets.only(left: 12, top: 10, bottom: 10, right: 4),
+          padding: const EdgeInsets.only(left: 10, top: 3, bottom: 3, right: 2),
           child: Row(
             children: [
               // Category color indicator
               Container(
-                width: 4,
-                height: 44,
+                width: 3,
+                height: 30,
                 decoration: BoxDecoration(
-                  color: item.isChecked ? catColor.withOpacity(0.3) : catColor,
+                  color: item.isChecked
+                      ? catColor.withValues(alpha: 0.3)
+                      : catColor,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 9),
               // Category icon
               Container(
-                width: 36,
-                height: 36,
+                width: 30,
+                height: 30,
                 decoration: BoxDecoration(
                   color: item.isChecked
-                      ? catColor.withOpacity(0.08)
-                      : catColor.withOpacity(0.15),
+                      ? catColor.withValues(alpha: 0.08)
+                      : catColor.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   category.icon,
-                  size: 18,
-                  color: item.isChecked ? catColor.withOpacity(0.4) : catColor,
+                  size: 16,
+                  color: item.isChecked
+                      ? catColor.withValues(alpha: 0.4)
+                      : catColor,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 9),
               // Item name + notes
               Expanded(
                 child: Column(
@@ -141,19 +149,25 @@ class _ItemCard extends StatelessWidget {
                   children: [
                     Text(
                       item.name,
-                      style: theme.textTheme.bodyLarge?.copyWith(
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
-                        decoration: item.isChecked ? TextDecoration.lineThrough : null,
+                        height: 1.15,
+                        decoration: item.isChecked
+                            ? TextDecoration.lineThrough
+                            : null,
                         color: item.isChecked
-                            ? colorScheme.onSurface.withOpacity(0.4)
+                            ? colorScheme.onSurface.withValues(alpha: 0.4)
                             : colorScheme.onSurface,
                       ),
                     ),
                     if (item.notes != null && item.notes!.isNotEmpty)
                       Text(
                         item.notes!,
-                        style: theme.textTheme.bodySmall?.copyWith(
+                        style: theme.textTheme.labelSmall?.copyWith(
                           color: colorScheme.onSurfaceVariant,
+                          height: 1.05,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -163,19 +177,19 @@ class _ItemCard extends StatelessWidget {
               ),
               // Quantity badge
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: item.isChecked
                       ? colorScheme.surfaceContainerHigh
-                      : catColor.withOpacity(0.12),
+                      : catColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   UnitConverter.formatQuantity(item.quantity, item.unit),
-                  style: theme.textTheme.bodySmall?.copyWith(
+                  style: theme.textTheme.labelSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: item.isChecked
-                        ? colorScheme.onSurface.withOpacity(0.4)
+                        ? colorScheme.onSurface.withValues(alpha: 0.4)
                         : catColor,
                   ),
                 ),
@@ -185,33 +199,41 @@ class _ItemCard extends StatelessWidget {
                 onPressed: onVoice,
                 icon: Icon(
                   Icons.mic_rounded,
-                  size: 20,
+                  size: 18,
                   color: item.isChecked
-                      ? colorScheme.onSurface.withOpacity(0.25)
-                      : colorScheme.primary.withOpacity(0.7),
+                      ? colorScheme.onSurface.withValues(alpha: 0.25)
+                      : colorScheme.primary.withValues(alpha: 0.7),
                 ),
                 style: IconButton.styleFrom(
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  padding: const EdgeInsets.all(8),
+                  minimumSize: const Size(40, 40),
+                  maximumSize: const Size(40, 40),
+                  padding: const EdgeInsets.all(6),
                 ),
                 tooltip: 'Voice update',
               ),
               // Checkbox
-              GestureDetector(
+              InkResponse(
                 onTap: onToggle,
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 4),
+                radius: 20,
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 250),
                     child: item.isChecked
-                        ? Icon(Icons.check_circle_rounded,
+                        ? Icon(
+                            Icons.check_circle_rounded,
                             key: const ValueKey('checked'),
                             color: colorScheme.primary,
-                            size: 26)
-                        : Icon(Icons.radio_button_unchecked_rounded,
+                            size: 23,
+                          )
+                        : Icon(
+                            Icons.radio_button_unchecked_rounded,
                             key: const ValueKey('unchecked'),
                             color: colorScheme.outlineVariant,
-                            size: 26),
+                            size: 23,
+                          ),
                   ),
                 ),
               ),
