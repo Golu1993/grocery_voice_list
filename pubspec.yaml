@@ -1,8 +1,8 @@
-name: groceryvoicelist
-description: "Voice-powered grocery list with English & Hindi support"
+name: vocart
+description: "Voice-powered list with English & Hindi support"
 publish_to: 'none'
 
-version: 1.0.3+3
+version: 1.0.4+4
 
 environment:
   sdk: ^3.12.0

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:groceryvoicelist/models/order_item.dart';
-import 'package:groceryvoicelist/providers/order_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:vocart/models/order_item.dart';
 
 import '../utils/app_colors.dart';
 
@@ -13,17 +11,20 @@ class OrderListItemItem extends StatelessWidget {
     required this.index,
     required this.onDelete,
     required this.onShare,
+    required this.onOpen,
+    required this.onToggleExpanded,
   });
 
   final OrderItem orderItem;
   final int index;
   final VoidCallback onDelete;
   final VoidCallback onShare;
+  final VoidCallback onOpen;
+  final VoidCallback onToggleExpanded;
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final orderProvider = context.read<OrderProvider>();
     final isActive = orderItem.isCurrent;
     final itemCount = orderItem.itemList.length;
     final preview = orderItem.itemList
@@ -59,7 +60,7 @@ class OrderListItemItem extends StatelessWidget {
           border: Border.all(color: colors.outlineVariant),
         ),
         child: InkWell(
-          onTap: () => orderProvider.toggleExpanded(index),
+          onTap: onOpen,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -136,10 +137,19 @@ class OrderListItemItem extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    Text(
-                      orderItem.isExpanded ? 'Hide items' : 'View items',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: colors.onSurfaceVariant,
+                    TextButton(
+                      onPressed: onToggleExpanded,
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(88, 40),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        foregroundColor: colors.onSurfaceVariant,
+                        textStyle: Theme.of(context).textTheme.labelMedium,
+                      ),
+                      child: Text(
+                        orderItem.isExpanded ? 'Hide items' : 'View items',
                       ),
                     ),
                     const SizedBox(width: 8),

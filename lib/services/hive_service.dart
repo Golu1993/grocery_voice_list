@@ -34,14 +34,14 @@ class HiveService {
 
   static Future<void> save(GroceryItem item) async {
     await _box.put(item.id, item);
-    saveCurrentItem();
+    await saveCurrentItem();
   }
 
   static Future<void> delete(String id) async {
     await _box.delete(id);
-    saveCurrentItem();
-
+    await saveCurrentItem();
   }
+
   static Future<void> deleteOrder(int id) async {
     await _boxOrder.delete(id);
   }
@@ -61,7 +61,7 @@ class HiveService {
   }
 
   static List<OrderItem> getAllOrders() {
-    var orders= _boxOrder.values.toList();
+    var orders = _boxOrder.values.toList();
     orders.sort((a, b) => b.orderId.compareTo(a.orderId));
     return orders;
   }
@@ -107,9 +107,8 @@ class HiveService {
     );
   }
 
-  static void saveCurrentItem() async {
+  static Future<void> saveCurrentItem() async {
     OrderItem orderItem = getAllGroceryItems(true);
-    var id = orderItem.orderId > 0 ? (orderItem.orderId - 1) : 0;
     await _boxOrder.put(orderItem.orderId, orderItem);
   }
 }

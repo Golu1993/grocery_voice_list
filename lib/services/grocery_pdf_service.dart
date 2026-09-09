@@ -9,6 +9,9 @@ import '../utils/unit_converter.dart';
 class GroceryPdfService {
   GroceryPdfService._();
 
+  static const String appDownloadUrl =
+      'https://play.google.com/store/apps/details?id=com.niviclouds.groceryvoicelist';
+
   static const _regularFontPath = 'assets/fonts/NotoSans-Regular.ttf';
   static const _boldFontPath = 'assets/fonts/NotoSans-Bold.ttf';
   static const _devanagariFontPath = 'assets/fonts/NotoSansDevanagari.ttf';
@@ -76,9 +79,25 @@ class GroceryPdfService {
           child: pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text(
-                'Created with Vocart',
-                style: pw.TextStyle(fontSize: 8, color: muted),
+              pw.Row(
+                mainAxisSize: pw.MainAxisSize.min,
+                children: [
+                  pw.Text(
+                    'Created with Vocart | ',
+                    style: pw.TextStyle(fontSize: 8, color: muted),
+                  ),
+                  pw.UrlLink(
+                    destination: appDownloadUrl,
+                    child: pw.Text(
+                      'Get the app',
+                      style: pw.TextStyle(
+                        fontSize: 8,
+                        color: primary,
+                        decoration: pw.TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               pw.Text(
                 'Page ${context.pageNumber} of ${context.pagesCount}',

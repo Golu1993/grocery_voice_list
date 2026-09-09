@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:groceryvoicelist/screens/setting_screen.dart';
+import 'package:vocart/screens/setting_screen.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/grocery_provider.dart';
@@ -327,7 +327,12 @@ class _HomeScreenState extends State<HomeScreen> {
       case 0:
         return getHomePageWidget();
       case 1:
-        return MyOrdersScreen();
+        return MyOrdersScreen(
+          onShowHome: () {
+            if (!mounted) return;
+            setState(() => this.indexClick = 0);
+          },
+        );
       case 2:
         return SettingScreen();
       default:

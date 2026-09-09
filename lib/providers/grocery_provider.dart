@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
+import '../models/grocery_field.dart';
 import '../models/grocery_item.dart';
 import '../services/hive_service.dart';
 import '../services/voice_parser.dart';
@@ -203,6 +204,49 @@ class GroceryProvider extends ChangeNotifier {
     _sortItems();
     notifyListeners();
     return 'Updated ${updated.name}';
+  }
+
+  Future<void> mergeSavedItems(Iterable<GroceryField> savedItems) async {
+    for (final savedItem in savedItems) {
+      final existing = _findItemByName(savedItem.name);
+      if (existing != null) {
+        final merged = UnitConverter.mergeQuantities(
+          existing.quantity,
+          existing.unit,
+          savedItem.quantity,
+          savedItem.unit,
+        );
+        if (merged != null) {
+          existing.quantity = merged;
+          existing.isChecked = false;
+          await HiveService.save(existing);
+          continue;
+        }
+      }
+
+      final parsed = VoiceParser.parse('add ${savedItem.name}');
+      final item = GroceryItem(
+        id: _uuid.v4(),
+        name: savedItem.name,
+        quantity: savedItem.quantity,
+        unit: savedItem.unit,
+        categoryKey: parsed.categoryKey ?? GroceryCategory.other.storageKey,
+        isChecked: false,
+        createdAt: DateTime.now(),
+      );
+      _items.add(item);
+      await HiveService.save(item);
+    }
+
+    _sortItems();
+    notifyListeners();
+  }
+
+  Future<void> openSavedItemsAsNew(Iterable<GroceryField> savedItems) async {
+    if (_items.isNotEmpty) {
+      await clearAll();
+    }
+    await mergeSavedItems(savedItems);
   }
 
   Future<String?> deleteItem(String id) async {

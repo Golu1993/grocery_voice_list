@@ -35,7 +35,9 @@ class _GroceryPdfPreviewScreenState extends State<GroceryPdfPreviewScreen> {
         filename: GroceryPdfService.fileNameFor(widget.order),
         bounds: bounds,
         subject: 'Vocart List',
-        body: 'Here is my Vocart list.',
+        body:
+            'Shared from Vocart - Voice Grocery List\n'
+            'Get the app: ${GroceryPdfService.appDownloadUrl}',
       );
     } catch (_) {
       if (!mounted) return;

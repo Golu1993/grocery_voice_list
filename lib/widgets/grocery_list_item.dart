@@ -65,6 +65,7 @@ class GroceryListItem extends StatelessWidget {
           item: item,
           category: category,
           onToggle: onToggle,
+          onEdit: onEdit,
           onVoice: onVoice,
         ),
       ),
@@ -76,12 +77,14 @@ class _ItemCard extends StatelessWidget {
   final GroceryItem item;
   final GroceryCategory category;
   final VoidCallback onToggle;
+  final VoidCallback onEdit;
   final VoidCallback onVoice;
 
   const _ItemCard({
     required this.item,
     required this.category,
     required this.onToggle,
+    required this.onEdit,
     required this.onVoice,
   });
 
@@ -105,7 +108,7 @@ class _ItemCard extends StatelessWidget {
         ),
       ),
       child: InkWell(
-        onTap: onToggle,
+        onTap: onEdit,
         borderRadius: BorderRadius.circular(14),
         child: Padding(
           padding: const EdgeInsets.only(left: 10, top: 3, bottom: 3, right: 2),

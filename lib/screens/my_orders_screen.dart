@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:groceryvoicelist/widgets/order_list_item.dart';
+import 'package:vocart/widgets/order_list_item.dart';
 import 'package:provider/provider.dart';
 
+import '../models/order_item.dart';
+import '../providers/grocery_provider.dart';
 import '../providers/order_provider.dart';
 import '../utils/app_colors.dart';
 import 'grocery_pdf_preview_screen.dart';
 
 class MyOrdersScreen extends StatefulWidget {
-  const MyOrdersScreen({super.key});
+  const MyOrdersScreen({super.key, required this.onShowHome});
+
+  final VoidCallback onShowHome;
 
   @override
   State<MyOrdersScreen> createState() => _MyOrdersScreenState();
@@ -20,6 +24,52 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<OrderProvider>().refreshOrders();
     });
+  }
+
+  Future<void> _openList(OrderItem order) async {
+    if (order.isCurrent) {
+      widget.onShowHome();
+      return;
+    }
+
+    final action = await showDialog<_OpenListAction>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Open this list?'),
+        content: const Text(
+          'Merge it with your current list or open it as a new list.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(dialogContext, _OpenListAction.merge),
+            child: const Text('Merge'),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(dialogContext, _OpenListAction.newList),
+            child: const Text('New List'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted || action == null) return;
+
+    final grocery = context.read<GroceryProvider>();
+    if (action == _OpenListAction.merge) {
+      await grocery.mergeSavedItems(order.itemList);
+    } else {
+      await grocery.openSavedItemsAsNew(order.itemList);
+    }
+
+    if (!mounted) return;
+    await context.read<OrderProvider>().refreshOrders();
+    if (mounted) widget.onShowHome();
   }
 
   @override
@@ -63,6 +113,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                 orderItem: order,
                 index: index,
                 onDelete: () => provider.removeOrder(index),
+                onOpen: () => _openList(order),
+                onToggleExpanded: () => provider.toggleExpanded(index),
                 onShare: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => GroceryPdfPreviewScreen(order: order),
@@ -76,3 +128,5 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     );
   }
 }
+
+enum _OpenListAction { merge, newList }
