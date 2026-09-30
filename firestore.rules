@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid;
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    match /devices/{deviceDocumentId} {
+      function validDeviceWrite() {
+        return request.auth != null
+          && request.resource.data.userUid == request.auth.uid
+          && deviceDocumentId == request.auth.uid + '_' + request.resource.data.uuid
+          && request.resource.data.keys().hasOnly([
+            'userUid', 'platform', 'name', 'model', 'deviceId', 'uuid', 'fcmToken'
+          ])
+          && request.resource.data.keys().hasAll([
+            'userUid', 'platform', 'name', 'model', 'deviceId', 'uuid', 'fcmToken'
+          ])
+          && request.resource.data.platform is string
+          && request.resource.data.name is string
+          && request.resource.data.model is string
+          && request.resource.data.deviceId is string
+          && request.resource.data.uuid is string
+          && (request.resource.data.fcmToken == null
+            || request.resource.data.fcmToken is string);
+      }
+
+      allow read: if request.auth != null
+        && resource.data.userUid == request.auth.uid;
+      allow create: if validDeviceWrite();
+      allow update: if resource.data.userUid == request.auth.uid
+        && validDeviceWrite();
+      allow delete: if false;
+    }
+  }
+}

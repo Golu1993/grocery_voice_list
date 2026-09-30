@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'services/hive_service.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'app.dart';
 
 void main() async {
@@ -11,7 +11,7 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  await HiveService.init();
+  await Hive.initFlutter();
 
   runApp(const GroceryVoiceApp());
 }

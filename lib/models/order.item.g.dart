@@ -19,15 +19,17 @@ class OrderItemAdapter extends TypeAdapter<OrderItem> {
       status: fields[4] as String,
       itemList: (fields[5] as List).cast<GroceryField>(),
       isExpanded: fields[6] as bool? ?? false,
-      orderId: fields[7] as int? ??0,
-      isCurrent: fields[8] as bool? ??true,
+      orderId: fields[7] as int? ?? 0,
+      isCurrent: fields[8] as bool? ?? true,
+      uuid: fields[9] as String? ?? '',
+      completed: fields[10] as bool? ?? false,
     );
   }
 
   @override
   void write(BinaryWriter writer, OrderItem obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.time)
       ..writeByte(1)
@@ -45,7 +47,11 @@ class OrderItemAdapter extends TypeAdapter<OrderItem> {
       ..writeByte(7)
       ..write(obj.orderId)
       ..writeByte(8)
-      ..write(obj.isCurrent);
+      ..write(obj.isCurrent)
+      ..writeByte(9)
+      ..write(obj.uuid)
+      ..writeByte(10)
+      ..write(obj.completed);
   }
 
   @override
@@ -54,7 +60,7 @@ class OrderItemAdapter extends TypeAdapter<OrderItem> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-          other is OrderItemAdapter &&
-              runtimeType == other.runtimeType &&
-              typeId == other.typeId;
+      other is OrderItemAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
 }

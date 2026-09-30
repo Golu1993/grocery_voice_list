@@ -5,10 +5,10 @@ import 'package:get/get.dart';
 import 'package:vocart/screens/setting_screen.dart';
 import 'package:provider/provider.dart';
 
+import '../models/grocery_item.dart';
 import '../providers/grocery_provider.dart';
 import '../providers/order_provider.dart';
 import '../providers/voice_provider.dart';
-import '../services/hive_service.dart';
 import '../utils/app_colors.dart';
 import '../widgets/category_filter_row.dart';
 import '../widgets/custom_appbar.dart';
@@ -51,10 +51,33 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           TextButton(onPressed: () => Get.back(), child: const Text('Cancel')),
           FilledButton(
-            onPressed: () {
-              orderProvider.addOrder(HiveService.getAllGroceryItems(false));
-              grocery.clearAll();
-              Get.back();
+            onPressed: () async {
+              String uuid;
+              try {
+                uuid = await grocery.startNewList();
+              } catch (error) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Could not start a new list: $error'),
+                    ),
+                  );
+                }
+                return;
+              }
+              orderProvider.setActiveOrder(uuid);
+              if (ctx.mounted) Navigator.pop(ctx);
+              try {
+                await orderProvider.refreshOrders();
+              } catch (error) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Could not refresh list history: $error'),
+                    ),
+                  );
+                }
+              }
             },
             child: const Text('Start'),
           ),
@@ -89,6 +112,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _openVoiceForItem(BuildContext context, String itemName) =>
       VoiceFab.openSheet(context, itemContextName: itemName);
+
+  void _openEditItem([GroceryItem? item]) {
+    final grocery = context.read<GroceryProvider>();
+    Get.to(() => EditItemScreen(groceryProvider: grocery, item: item));
+  }
 
   Future<void> _handleDelete(BuildContext context, String id) async {
     final grocery = context.read<GroceryProvider>();
@@ -322,7 +350,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  _setWidgetOnTabClick(int indexClick) {
+  Widget _setWidgetOnTabClick(int indexClick) {
     switch (indexClick) {
       case 0:
         return getHomePageWidget();
@@ -336,7 +364,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case 2:
         return SettingScreen();
       default:
-        SizedBox();
+        return SizedBox();
     }
   }
 
@@ -375,7 +403,7 @@ class _HomeScreenState extends State<HomeScreen> {
               text: 'Item',
               backgroundColor: AppColors.of(context).primary,
               onTap: () {
-                Get.to(() => EditItemScreen());
+                _openEditItem();
               },
             ),
             SizedBox(width: 20),
@@ -421,7 +449,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         }
                       },
                       onDelete: () => _handleDelete(context, item.id),
-                      onEdit: () => Get.to(() => EditItemScreen(item: item)),
+                      onEdit: () => _openEditItem(item),
                       onVoice: () => _openVoiceForItem(context, item.name),
                     );
                   },

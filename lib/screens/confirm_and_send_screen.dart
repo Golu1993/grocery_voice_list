@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../providers/grocery_provider.dart';
 import '../widgets/custom_elevated_button.dart';
-
 
 class ConfirmAndSendScreen extends StatefulWidget {
   const ConfirmAndSendScreen({super.key});
@@ -14,7 +15,6 @@ class _ConfirmAndSendScreenState extends State<ConfirmAndSendScreen> {
   final TextEditingController _noteController = TextEditingController();
 
   // Sample data — replace with data from your API / state management.
-  final int _itemCount = 12;
   final double _estimatedTotal = 592;
   final String _deliveryLabel = 'Home';
   final String _deliveryAddress = '123, Green Park, Indore';
@@ -35,7 +35,11 @@ class _ConfirmAndSendScreenState extends State<ConfirmAndSendScreen> {
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: Colors.black87,
+            size: 20,
+          ),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: const Text(
@@ -77,7 +81,7 @@ class _ConfirmAndSendScreenState extends State<ConfirmAndSendScreen> {
                 label: 'Send List',
                 icon: Icons.send,
                 onPressed: () {
-                  // TODO: Handle sending the list, e.g. call your API here.
+                  // TODO: Connect after a backend user token and list flow exist.
                 },
               ),
             ),
@@ -88,6 +92,7 @@ class _ConfirmAndSendScreenState extends State<ConfirmAndSendScreen> {
   }
 
   Widget _buildSummaryCard() {
+    final itemCount = context.watch<GroceryProvider>().uncheckedItems;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -98,7 +103,7 @@ class _ConfirmAndSendScreenState extends State<ConfirmAndSendScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '$_itemCount items in your list',
+            '$itemCount items in your list',
             style: const TextStyle(
               color: Color(0xFF1FA24A),
               fontWeight: FontWeight.w700,
@@ -225,10 +230,7 @@ class _InfoCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: leading,
-            ),
+            ClipRRect(borderRadius: BorderRadius.circular(10), child: leading),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'package:uuid/uuid.dart';
 
 import 'grocery_field.dart';
 
@@ -32,6 +33,12 @@ class OrderItem extends HiveObject {
   @HiveField(8)
   bool isCurrent;
 
+  @HiveField(9)
+  String uuid;
+
+  @HiveField(10)
+  bool completed;
+
   OrderItem({
     required this.time,
     required this.storeName,
@@ -42,5 +49,7 @@ class OrderItem extends HiveObject {
     required this.orderId,
     this.isExpanded = false,
     required this.isCurrent,
-  });
+    String? uuid,
+    this.completed = false,
+  }) : uuid = uuid ?? const Uuid().v1();
 }

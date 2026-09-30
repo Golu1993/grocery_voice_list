@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "963739819283",
+    "project_id": "vocart-30459",
+    "storage_bucket": "vocart-30459.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:963739819283:android:dc64899497277bdbe94ee6",
+        "android_client_info": {
+          "package_name": "com.niviclouds.groceryvoicelist"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "963739819283-03nkl3e6uu76ockaj96njv1f3iqk0q66.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.niviclouds.groceryvoicelist",
+            "certificate_hash": "23170dbd0a2b0a09c2407671f88dd351ea043377"
+          }
+        },
+        {
+          "client_id": "963739819283-hsn6iiqfcg54vcaf01nh4495vcaq6doo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.niviclouds.groceryvoicelist",
+            "certificate_hash": "88f33b867a7367e8a99f4d8c80ab767b0a1f531d"
+          }
+        },
+        {
+          "client_id": "963739819283-vp4q0ldffnfqmapqgfcu0f0kpng59ckb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCM8K8itqzTO8ImCENOD3r-JiHjf0Zpl-s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "963739819283-vp4q0ldffnfqmapqgfcu0f0kpng59ckb.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

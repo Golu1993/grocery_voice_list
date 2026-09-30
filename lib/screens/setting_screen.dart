@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../screens/about_app.dart';
 import '../screens/how_to_use.dart';
 import '../screens/privacy_policy.dart';
+import '../services/auth_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/utility.dart';
 
@@ -14,13 +15,67 @@ class SettingScreen extends StatefulWidget {
 }
 
 class _SettingScreenState extends State<SettingScreen> {
+  bool _signingOut = false;
+  String? _signOutError;
+
+  Future<void> _signOut() async {
+    if (_signingOut) return;
+    setState(() {
+      _signingOut = true;
+      _signOutError = null;
+    });
+    try {
+      await AuthService.signOut();
+    } catch (error) {
+      if (mounted) {
+        setState(() => _signOutError = AuthService.errorMessage(error));
+      }
+    } finally {
+      if (mounted) setState(() => _signingOut = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = AuthService.currentUser;
     return Scaffold(
-    backgroundColor: AppColors.of(context).surfaceContainerLowest,
+      backgroundColor: AppColors.of(context).surfaceContainerLowest,
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          _sectionTitle('Account'),
+          Card(
+            margin: const EdgeInsets.only(bottom: 10),
+            elevation: 0,
+            child: ListTile(
+              leading: const Icon(Icons.person_outline),
+              title: Text(user?.displayName ?? 'Google account'),
+              subtitle: Text(user?.email ?? 'Signed in'),
+            ),
+          ),
+          Card(
+            margin: const EdgeInsets.only(bottom: 10),
+            elevation: 0,
+            child: ListTile(
+              leading: _signingOut
+                  ? const Padding(
+                      padding: EdgeInsets.all(10),
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.logout_rounded),
+              title: Text(_signingOut ? 'Signing out…' : 'Sign out'),
+              onTap: _signingOut ? null : _signOut,
+            ),
+          ),
+          if (_signOutError != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                _signOutError!,
+                style: TextStyle(color: AppColors.of(context).error),
+              ),
+            ),
+          const SizedBox(height: 20),
           _sectionTitle("Information"),
 
           _settingTile(

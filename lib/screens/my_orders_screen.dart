@@ -21,9 +21,20 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<OrderProvider>().refreshOrders();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      try {
+        await context.read<OrderProvider>().refreshOrders();
+      } catch (error) {
+        if (mounted) _showError(error);
+      }
     });
+  }
+
+  void _showError(Object error) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Could not update lists: $error')));
   }
 
   Future<void> _openList(OrderItem order) async {
@@ -61,15 +72,22 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     if (!mounted || action == null) return;
 
     final grocery = context.read<GroceryProvider>();
-    if (action == _OpenListAction.merge) {
-      await grocery.mergeSavedItems(order.itemList);
-    } else {
-      await grocery.openSavedItemsAsNew(order.itemList);
-    }
+    final orderProvider = context.read<OrderProvider>();
+    try {
+      if (action == _OpenListAction.merge) {
+        await grocery.mergeSavedItems(order.itemList);
+      } else {
+        final uuid = await grocery.startNewList();
+        orderProvider.setActiveOrder(uuid);
+        await grocery.mergeSavedItems(order.itemList);
+      }
 
-    if (!mounted) return;
-    await context.read<OrderProvider>().refreshOrders();
-    if (mounted) widget.onShowHome();
+      if (!mounted) return;
+      await orderProvider.refreshOrders();
+      if (mounted) widget.onShowHome();
+    } catch (error) {
+      if (mounted) _showError(error);
+    }
   }
 
   @override
@@ -78,8 +96,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       backgroundColor: AppColors.of(context).surfaceContainerLowest,
       body: Consumer<OrderProvider>(
         builder: (context, provider, _) {
-          if (provider.orders.isEmpty ||
-              provider.orders.first.itemList.isEmpty) {
+          if (provider.orders.isEmpty) {
             return const Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -96,7 +113,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                   ),
                   SizedBox(height: 4),
                   Text(
-                    "Your grocery orders will appear here.",
+                    "Your orders will appear here.",
                     style: TextStyle(color: Colors.grey),
                   ),
                 ],
@@ -112,7 +129,13 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
               return OrderListItemItem(
                 orderItem: order,
                 index: index,
-                onDelete: () => provider.removeOrder(index),
+                onDelete: () async {
+                  try {
+                    await provider.removeOrder(index);
+                  } catch (error) {
+                    if (mounted) _showError(error);
+                  }
+                },
                 onOpen: () => _openList(order),
                 onToggleExpanded: () => provider.toggleExpanded(index),
                 onShare: () => Navigator.of(context).push(

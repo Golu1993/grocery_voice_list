@@ -1,17 +1,25 @@
-import '../models/order_item.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 
 import '../models/grocery_field.dart';
 import '../models/grocery_item.dart';
+import '../models/order_item.dart';
 import '../utils/constants.dart';
 
 class HiveService {
   static late Box<GroceryItem> _box;
   static late Box<OrderItem> _boxOrder;
+  static String? _activeUserId;
+  static const _migrationBoxName = 'vocart_auth_migration';
+  static const _migrationOwnerKey = 'legacy_owner_uid';
 
-  static Future<void> init() async {
-    await Hive.initFlutter();
+  static Future<void> init({String? directory}) async {
+    if (directory == null) {
+      await Hive.initFlutter();
+    } else {
+      Hive.init(directory);
+    }
     if (!Hive.isAdapterRegistered(0)) {
       Hive.registerAdapter(GroceryItemAdapter());
     }
@@ -23,6 +31,75 @@ class HiveService {
     }
     _box = await Hive.openBox<GroceryItem>(kGroceryBox);
     _boxOrder = await Hive.openBox<OrderItem>(kOrderBox);
+  }
+
+  /// Keeps local lists separate for each signed-in account. Legacy lists are
+  /// copied once to the first account, leaving the originals as a backup.
+  static Future<void> activateUser(String uid) async {
+    if (_activeUserId == uid && _box.isOpen && _boxOrder.isOpen) return;
+
+    final previousGrocery = _box;
+    final previousOrders = _boxOrder;
+    final grocery = await Hive.openBox<GroceryItem>('${kGroceryBox}_$uid');
+    final orders = await Hive.openBox<OrderItem>('${kOrderBox}_$uid');
+    final migration = await Hive.openBox<String>(_migrationBoxName);
+
+    if (migration.get(_migrationOwnerKey) == null) {
+      final legacyGrocery = await Hive.openBox<GroceryItem>(kGroceryBox);
+      final legacyOrders = await Hive.openBox<OrderItem>(kOrderBox);
+      for (final key in legacyGrocery.keys) {
+        if (!grocery.containsKey(key)) {
+          await grocery.put(key, legacyGrocery.get(key)!.copyWith());
+        }
+      }
+      for (final key in legacyOrders.keys) {
+        if (!orders.containsKey(key)) {
+          final item = legacyOrders.get(key)!;
+          await orders.put(
+            key,
+            OrderItem(
+              time: item.time,
+              storeName: item.storeName,
+              itemCount: item.itemCount,
+              amount: item.amount,
+              status: item.status,
+              itemList: item.itemList
+                  .map(
+                    (field) => GroceryField(
+                      name: field.name,
+                      quantity: field.quantity,
+                      unit: field.unit,
+                      isChecked: field.isChecked,
+                    ),
+                  )
+                  .toList(),
+              orderId: item.orderId,
+              isExpanded: item.isExpanded,
+              isCurrent: item.isCurrent,
+              uuid: item.uuid.isEmpty ? null : item.uuid,
+              completed: item.completed,
+            ),
+          );
+        }
+      }
+      await migration.put(_migrationOwnerKey, uid);
+      if (legacyGrocery != previousGrocery) await legacyGrocery.close();
+      if (legacyOrders != previousOrders) await legacyOrders.close();
+    }
+
+    for (final key in orders.keys) {
+      final order = orders.get(key);
+      if (order != null && order.uuid.isEmpty) {
+        order.uuid = const Uuid().v1();
+        await orders.put(key, order);
+      }
+    }
+
+    _box = grocery;
+    _boxOrder = orders;
+    _activeUserId = uid;
+    if (previousGrocery != grocery) await previousGrocery.close();
+    if (previousOrders != orders) await previousOrders.close();
   }
 
   static Box<GroceryItem> get box => _box;
@@ -48,12 +125,14 @@ class HiveService {
 
   static Future<void> deleteAll() async {
     OrderItem orderItem = getAllGroceryItems(false);
-    await saveToOrderBox(orderItem);
+    await _boxOrder.put(orderItem.orderId, orderItem);
     await _box.clear();
   }
 
   static Future<void> close() async {
     await _box.close();
+    await _boxOrder.close();
+    _activeUserId = null;
   }
 
   static Future<void> saveToOrderBox(OrderItem orderItem) async {
@@ -82,11 +161,23 @@ class HiveService {
     var list = getAllOrders();
     var listSaved = getAllSavedOrders();
 
-    var orderID = getOrderID(current, list.length, listSaved.length);
+    OrderItem? currentOrder;
+    for (final order in _boxOrder.values) {
+      if (order.isCurrent) {
+        currentOrder = order;
+        break;
+      }
+    }
+
+    var orderID =
+        currentOrder?.orderId ??
+        getOrderID(current, list.length, listSaved.length);
     if (list.length == getAllSavedOrders().length) {}
     String date = DateFormat('MMMM dd, yyyy hh:mm a').format(DateTime.now());
+    final existingUuid = currentOrder?.uuid;
     return OrderItem(
       orderId: orderID,
+      uuid: existingUuid == null || existingUuid.isEmpty ? null : existingUuid,
       time: date,
       storeName: 'My Store',
       itemCount: groceries.length,

@@ -2,13 +2,28 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../models/grocery_field.dart';
 import '../models/grocery_item.dart';
-import '../services/hive_service.dart';
+import '../services/firestore_query.dart';
 import '../services/voice_parser.dart';
 import '../utils/constants.dart';
 import '../utils/unit_converter.dart';
 
 class GroceryProvider extends ChangeNotifier {
+  factory GroceryProvider({
+    FirestoreQuery? firestoreQuery,
+    String? userUuid,
+    String? orderUuid,
+  }) => GroceryProvider._(firestoreQuery, userUuid, orderUuid);
+
+  GroceryProvider._(this._firestoreQuery, this._userUuid, this._orderUuid);
+
   final _uuid = const Uuid();
+  FirestoreQuery? _firestoreQuery;
+  final String? _userUuid;
+  String? _orderUuid;
+  Future<void> _writeQueue = Future.value();
+  Future<void>? _lastWrite;
+
+  FirestoreQuery get _query => _firestoreQuery ??= FirestoreQuery();
 
   List<GroceryItem> _items = [];
   GroceryCategory _selectedCategory = GroceryCategory.all;
@@ -67,8 +82,43 @@ class GroceryProvider extends ChangeNotifier {
   // ── Initialization ────────────────────────────────────────────────────────
 
   Future<void> loadItems() async {
-    _items = HiveService.getAllGrocery();
+    final orderUuid = _orderUuid;
+    if (orderUuid != null) {
+      _items = (await _query.getOrder(orderUuid)).items;
+    }
     notifyListeners();
+  }
+
+  Future<void> _saveItems() {
+    final orderUuid = _orderUuid;
+    final userUuid = _userUuid;
+    if (orderUuid == null || userUuid == null) return Future.value();
+    final snapshot = _items.map((item) => item.copyWith()).toList();
+    final write = _writeQueue.then(
+      (_) => _query.saveOrderItems(
+        orderUuid: orderUuid,
+        userUuid: userUuid,
+        items: snapshot,
+      ),
+    );
+    _lastWrite = write;
+    _writeQueue = write.catchError((Object _) {});
+    return write;
+  }
+
+  Future<String> startNewList() async {
+    final userUuid = _userUuid;
+    if (userUuid == null) throw StateError('No signed-in user is available.');
+    await (_lastWrite ?? _writeQueue);
+    final order = await _query.startNewOrder(
+      userUuid: userUuid,
+      previousOrderUuid: _orderUuid,
+    );
+    _orderUuid = order.uuid;
+    _items.clear();
+    _undoStack.clear();
+    notifyListeners();
+    return order.uuid;
   }
 
   // ── CRUD ──────────────────────────────────────────────────────────────────
@@ -92,7 +142,7 @@ class GroceryProvider extends ChangeNotifier {
       );
       if (merged != null) {
         existing.quantity = merged;
-        await HiveService.save(existing);
+        await _saveItems();
         _sortItems();
         notifyListeners();
         return 'Updated ${existing.name}: ${UnitConverter.formatQuantity(merged, existing.unit)}';
@@ -109,7 +159,7 @@ class GroceryProvider extends ChangeNotifier {
       notes: notes,
     );
     _items.add(item);
-    await HiveService.save(item);
+    await _saveItems();
     _sortItems();
     notifyListeners();
     return 'Added ${UnitConverter.formatQuantity(quantity, unit)} $name';
@@ -141,7 +191,7 @@ class GroceryProvider extends ChangeNotifier {
     );
     if (merged != null) {
       item.quantity = merged;
-      await HiveService.save(item);
+      await _saveItems();
       notifyListeners();
       return 'Updated ${item.name}: ${UnitConverter.formatQuantity(merged, item.unit)}';
     }
@@ -175,7 +225,7 @@ class GroceryProvider extends ChangeNotifier {
     }
 
     item.quantity = newQty;
-    await HiveService.save(item);
+    await _saveItems();
     notifyListeners();
     return 'Updated ${item.name}: ${UnitConverter.formatQuantity(newQty, item.unit)}';
   }
@@ -191,7 +241,7 @@ class GroceryProvider extends ChangeNotifier {
 
     item.quantity = quantity;
     item.unit = unit;
-    await HiveService.save(item);
+    await _saveItems();
     notifyListeners();
     return 'Updated ${item.name}: ${UnitConverter.formatQuantity(quantity, unit)}';
   }
@@ -200,7 +250,7 @@ class GroceryProvider extends ChangeNotifier {
     final idx = _items.indexWhere((i) => i.id == updated.id);
     if (idx == -1) return null;
     _items[idx] = updated;
-    await HiveService.save(updated);
+    await _saveItems();
     _sortItems();
     notifyListeners();
     return 'Updated ${updated.name}';
@@ -219,7 +269,6 @@ class GroceryProvider extends ChangeNotifier {
         if (merged != null) {
           existing.quantity = merged;
           existing.isChecked = false;
-          await HiveService.save(existing);
           continue;
         }
       }
@@ -235,18 +284,11 @@ class GroceryProvider extends ChangeNotifier {
         createdAt: DateTime.now(),
       );
       _items.add(item);
-      await HiveService.save(item);
     }
 
     _sortItems();
+    await _saveItems();
     notifyListeners();
-  }
-
-  Future<void> openSavedItemsAsNew(Iterable<GroceryField> savedItems) async {
-    if (_items.isNotEmpty) {
-      await clearAll();
-    }
-    await mergeSavedItems(savedItems);
   }
 
   Future<String?> deleteItem(String id) async {
@@ -254,7 +296,7 @@ class GroceryProvider extends ChangeNotifier {
     if (idx == -1) return null;
     final item = _items[idx];
     _items.removeAt(idx);
-    await HiveService.delete(id);
+    await _saveItems();
     _undoStack.add(item);
     if (_undoStack.length > 10) _undoStack.removeAt(0);
     notifyListeners();
@@ -273,7 +315,7 @@ class GroceryProvider extends ChangeNotifier {
       orElse: () => throw StateError(''),
     );
     item.isChecked = !item.isChecked;
-    await HiveService.save(item);
+    await _saveItems();
     _sortItems();
     notifyListeners();
     return item.isChecked ? 'Checked ${item.name}' : 'Unchecked ${item.name}';
@@ -283,7 +325,7 @@ class GroceryProvider extends ChangeNotifier {
     final item = _findItemByName(name);
     if (item == null) return 'Item "$name" not found';
     item.isChecked = true;
-    await HiveService.save(item);
+    await _saveItems();
     _sortItems();
     notifyListeners();
     return 'Checked ${item.name}';
@@ -293,7 +335,7 @@ class GroceryProvider extends ChangeNotifier {
     if (_undoStack.isEmpty) return;
     final item = _undoStack.removeLast();
     _items.add(item);
-    await HiveService.save(item);
+    await _saveItems();
     _sortItems();
     notifyListeners();
   }
@@ -303,17 +345,14 @@ class GroceryProvider extends ChangeNotifier {
   }
 
   Future<void> clearChecked() async {
-    final toDelete = _items.where((i) => i.isChecked).map((i) => i.id).toList();
-    for (final id in toDelete) {
-      _items.removeWhere((i) => i.id == id);
-      await HiveService.delete(id);
-    }
+    _items.removeWhere((item) => item.isChecked);
+    await _saveItems();
     notifyListeners();
   }
 
   Future<void> clearAll() async {
     _items.clear();
-    await HiveService.deleteAll();
+    await _saveItems();
     notifyListeners();
   }
 

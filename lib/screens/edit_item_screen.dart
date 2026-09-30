@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:provider/provider.dart';
 
 import '../models/grocery_item.dart';
 import '../providers/grocery_provider.dart';
@@ -9,8 +8,9 @@ import '../widgets/custom_appbar.dart';
 
 class EditItemScreen extends StatefulWidget {
   final GroceryItem? item; // null = add new item manually
+  final GroceryProvider groceryProvider;
 
-  const EditItemScreen({super.key, this.item});
+  const EditItemScreen({super.key, required this.groceryProvider, this.item});
 
   @override
   State<EditItemScreen> createState() => _EditItemScreenState();
@@ -54,7 +54,7 @@ class _EditItemScreenState extends State<EditItemScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    final provider = context.read<GroceryProvider>();
+    final provider = widget.groceryProvider;
     final qty = double.tryParse(_quantityCtrl.text.trim()) ?? 1.0;
 
     if (_isEditing) {

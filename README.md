@@ -15,3 +15,10 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
+## Data storage
+
+Google sign-in identifies the account. Grocery items and orders are saved in
+per-account Hive boxes on the device. Order UUIDs and device details remain
+available in their models, but the app does not save user, device, or order
+documents to Firestore. Existing Firestore documents are not changed or deleted.
