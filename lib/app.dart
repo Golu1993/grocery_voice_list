@@ -12,6 +12,7 @@ import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
 import 'services/firestore_query.dart';
+import 'services/hive_order_repository.dart';
 import 'utils/app_theme.dart';
 import 'utils/utility.dart';
 
@@ -156,17 +157,15 @@ class _UserSessionState extends State<_UserSession> {
   Future<_SessionData> _openUserSession() async {
     final query = FirestoreQuery();
     final deviceUuid = await Utility.getUniqueId();
-    final user = await query
-        .saveSignedInUser(firebaseUser: widget.user, deviceUuid: deviceUuid)
+    final profile = await query
+        .saveSignedInUser(firebaseUser: widget.user)
         .timeout(const Duration(seconds: 20));
-    final order = await query
-        .ensureActiveOrder(user)
+    await query
+        .setActiveUserId(deviceUuid: deviceUuid, userUuid: profile.uuid)
         .timeout(const Duration(seconds: 20));
-    return _SessionData(
-      query: query,
-      userUuid: user.uuid,
-      orderUuid: order.uuid,
-    );
+    final orders = await HiveOrderRepository.open(widget.user.uid);
+    final orderUuid = await orders.ensureActiveOrder();
+    return _SessionData(orders: orders, orderUuid: orderUuid);
   }
 
   @override
@@ -189,17 +188,12 @@ class _UserSessionState extends State<_UserSession> {
         return MultiProvider(
           providers: [
             ChangeNotifierProvider(
-              create: (_) => GroceryProvider(
-                firestoreQuery: data.query,
-                userUuid: data.userUuid,
-                orderUuid: data.orderUuid,
-              ),
+              create: (_) => GroceryProvider(orderRepository: data.orders),
             ),
             ChangeNotifierProvider(create: (_) => VoiceProvider()),
             ChangeNotifierProvider(
               create: (_) => OrderProvider(
-                firestoreQuery: data.query,
-                userUuid: data.userUuid,
+                orderRepository: data.orders,
                 activeOrderUuid: data.orderUuid,
               ),
             ),
@@ -212,14 +206,9 @@ class _UserSessionState extends State<_UserSession> {
 }
 
 class _SessionData {
-  const _SessionData({
-    required this.query,
-    required this.userUuid,
-    required this.orderUuid,
-  });
+  const _SessionData({required this.orders, required this.orderUuid});
 
-  final FirestoreQuery query;
-  final String userUuid;
+  final HiveOrderRepository orders;
   final String orderUuid;
 }
 

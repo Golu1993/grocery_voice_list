@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "963739819283-65287m9sjmu0l6g8j8bbpi2q53mq158l.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.niviclouds.groceryvoicelist",
+            "certificate_hash": "2eaa485db7566b28277511cef9fa8ba1e87b17af"
+          }
+        },
+        {
           "client_id": "963739819283-hsn6iiqfcg54vcaf01nh4495vcaq6doo.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

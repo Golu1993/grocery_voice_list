@@ -1,10 +1,16 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
 import 'package:vocart/features/smooth_speech_to_text/smooth_speech_to_text.dart';
 import 'package:vocart/models/grocery_field.dart';
 import 'package:vocart/models/grocery_item.dart';
 import 'package:vocart/models/order_item.dart';
 import 'package:vocart/providers/grocery_provider.dart';
+import 'package:vocart/providers/order_provider.dart';
+import 'package:vocart/screens/my_orders_screen.dart';
+import 'package:vocart/services/hive_order_repository.dart';
 import 'package:vocart/widgets/grocery_list_item.dart';
 import 'package:vocart/widgets/order_list_item.dart';
 import 'package:vocart/widgets/voice_fab.dart';
@@ -156,6 +162,85 @@ void main() {
     expect(openCount, 2);
     expect(expandCount, 1);
   });
+
+  testWidgets(
+    'saved list dialog shows Merge only when the home list has items',
+    (tester) async {
+      late Directory directory;
+      late HiveOrderRepository repository;
+      late GroceryProvider groceries;
+      late OrderProvider orders;
+      await tester.runAsync(() async {
+        directory = await Directory.systemTemp.createTemp('vocart_dialog_');
+        Hive.init(directory.path);
+        repository = await HiveOrderRepository.open('dialog-auth-uid');
+        await repository.ensureActiveOrder();
+        groceries = GroceryProvider(orderRepository: repository);
+        await groceries.loadItems();
+        await groceries.addItem(
+          name: 'Milk',
+          quantity: 1,
+          unit: 'l',
+          categoryKey: 'dairy',
+          notes: 'Organic',
+        );
+        final currentUuid = await groceries.startNewList();
+        orders = OrderProvider(
+          orderRepository: repository,
+          activeOrderUuid: currentUuid,
+        );
+        await orders.refreshOrders();
+      });
+      addTearDown(() async {
+        await Hive.close();
+        await directory.delete(recursive: true);
+      });
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider.value(value: groceries),
+            ChangeNotifierProvider.value(value: orders),
+          ],
+          child: MaterialApp(home: MyOrdersScreen(onShowHome: () {})),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Milk').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Merge'), findsNothing);
+      expect(find.text('Edit'), findsOneWidget);
+      final cancel = find.byIcon(Icons.cancel_outlined);
+      expect(cancel, findsOneWidget);
+      expect(
+        tester.getCenter(cancel).dx,
+        greaterThan(tester.getCenter(find.text('Open this list?')).dx),
+      );
+      expect(
+        tester.getCenter(cancel).dy,
+        lessThan(
+          tester
+              .getCenter(find.text('Choose how you want to open this list.'))
+              .dy,
+        ),
+      );
+      await tester.tap(cancel);
+      await tester.pumpAndSettle();
+
+      await tester.runAsync(
+        () => groceries.addItem(
+          name: 'Rice',
+          quantity: 2,
+          unit: 'kg',
+          categoryKey: 'grains',
+        ),
+      );
+      await tester.tap(find.text('Milk').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Merge'), findsOneWidget);
+      expect(find.text('Edit'), findsOneWidget);
+    },
+  );
 
   testWidgets(
     'voice dialog centers mic with transcript below and Done at top',

@@ -9,6 +9,7 @@ class DeviceDetails {
     required this.deviceId,
     required this.uuid,
     this.fcmToken,
+    this.activeUserId,
   });
 
   final String platform;
@@ -21,12 +22,14 @@ class DeviceDetails {
   /// App-generated UUID v1, persisted across sign-ins.
   final String uuid;
   final String? fcmToken;
+  final String? activeUserId;
 
   factory DeviceDetails.fromDeviceInfo(
     BaseDeviceInfo info, {
     required String deviceId,
     required String uuid,
     String? fcmToken,
+    String? activeUserId,
   }) {
     final id = _requireDeviceId(deviceId);
     if (info is AndroidDeviceInfo) {
@@ -37,6 +40,7 @@ class DeviceDetails {
         deviceId: id,
         uuid: uuid,
         fcmToken: fcmToken,
+        activeUserId: activeUserId,
       );
     }
     if (info is IosDeviceInfo) {
@@ -47,6 +51,7 @@ class DeviceDetails {
         deviceId: id,
         uuid: uuid,
         fcmToken: fcmToken,
+        activeUserId: activeUserId,
       );
     }
     throw UnsupportedError('Unsupported device platform: ${info.runtimeType}');
@@ -66,5 +71,6 @@ class DeviceDetails {
     'deviceId': deviceId,
     'uuid': uuid,
     'fcmToken': fcmToken,
+    if (activeUserId != null) 'activeUserId': activeUserId,
   };
 }

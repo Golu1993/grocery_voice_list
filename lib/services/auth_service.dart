@@ -98,7 +98,9 @@ class AuthService {
       return error.message ?? 'Firebase is unavailable. Please retry.';
     }
     if (error is GoogleSignInException) {
-      if (error.code == GoogleSignInExceptionCode.canceled) return '';
+      if (error.code == GoogleSignInExceptionCode.canceled) {
+        return 'Google sign-in did not finish. Please try again.';
+      }
       if (error.code == GoogleSignInExceptionCode.clientConfigurationError) {
         return 'Google sign-in is not configured for this app. Check the Android OAuth client and SHA fingerprints.';
       }

@@ -43,27 +43,35 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       return;
     }
 
+    final hasCurrentItems = context.read<GroceryProvider>().totalItems > 0;
     final action = await showDialog<_OpenListAction>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Open this list?'),
-        content: const Text(
-          'Merge it with your current list or open it as a new list.',
+        title: Row(
+          children: [
+            const Expanded(child: Text('Open this list?')),
+            IconButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              icon: const Icon(Icons.cancel_outlined,color: Colors.red,),
+            ),
+          ],
         ),
+        content: const Text('Choose how you want to open this list.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, _OpenListAction.merge),
-            child: const Text('Merge'),
-          ),
+          if (hasCurrentItems)
+            TextButton(
+              onPressed: () =>
+                  Navigator.pop(dialogContext, _OpenListAction.merge),
+              child: const Text('Merge',style: TextStyle(fontWeight: FontWeight.bold),),
+            ),
           TextButton(
             onPressed: () =>
                 Navigator.pop(dialogContext, _OpenListAction.newList),
-            child: const Text('New List'),
+            child: const Text('New List',style: TextStyle(fontWeight: FontWeight.bold),),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, _OpenListAction.edit),
+            child: const Text('Edit',style: TextStyle(fontWeight: FontWeight.bold),),
           ),
         ],
       ),
@@ -76,15 +84,19 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     try {
       if (action == _OpenListAction.merge) {
         await grocery.mergeSavedItems(order.itemList);
-      } else {
+        await orderProvider.refreshOrders();
+      } else if (action == _OpenListAction.newList) {
         final uuid = await grocery.startNewList();
         orderProvider.setActiveOrder(uuid);
         await grocery.mergeSavedItems(order.itemList);
+        await orderProvider.refreshOrders();
+      } else {
+        await grocery.editSavedList(order.uuid);
+        await orderProvider.showEditedOrder(order.uuid);
       }
 
       if (!mounted) return;
-      await orderProvider.refreshOrders();
-      if (mounted) widget.onShowHome();
+      widget.onShowHome();
     } catch (error) {
       if (mounted) _showError(error);
     }
@@ -152,4 +164,4 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   }
 }
 
-enum _OpenListAction { merge, newList }
+enum _OpenListAction { merge, newList, edit }

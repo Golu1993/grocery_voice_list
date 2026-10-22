@@ -19,6 +19,7 @@ samples, guidance on mobile development, and a full API reference.
 ## Data storage
 
 Google sign-in identifies the account. Grocery items and orders are saved in
-per-account Hive boxes on the device. Order UUIDs and device details remain
-available in their models, but the app does not save user, device, or order
-documents to Firestore. Existing Firestore documents are not changed or deleted.
+per-account Hive boxes on the device. User profiles and device details continue
+to use Firestore; the app no longer reads or writes order documents there.
+Existing Firestore orders are not imported, changed, or deleted, so orders that
+exist only in Firestore will not appear in local list history.

@@ -2,28 +2,21 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../models/grocery_field.dart';
 import '../models/grocery_item.dart';
-import '../services/firestore_query.dart';
+import '../services/hive_order_repository.dart';
 import '../services/voice_parser.dart';
 import '../utils/constants.dart';
 import '../utils/unit_converter.dart';
 
 class GroceryProvider extends ChangeNotifier {
-  factory GroceryProvider({
-    FirestoreQuery? firestoreQuery,
-    String? userUuid,
-    String? orderUuid,
-  }) => GroceryProvider._(firestoreQuery, userUuid, orderUuid);
-
-  GroceryProvider._(this._firestoreQuery, this._userUuid, this._orderUuid);
+  GroceryProvider({this.orderRepository});
 
   final _uuid = const Uuid();
-  FirestoreQuery? _firestoreQuery;
-  final String? _userUuid;
-  String? _orderUuid;
+  final HiveOrderRepository? orderRepository;
   Future<void> _writeQueue = Future.value();
   Future<void>? _lastWrite;
 
-  FirestoreQuery get _query => _firestoreQuery ??= FirestoreQuery();
+  HiveOrderRepository get _orders =>
+      orderRepository ?? (throw StateError('Order storage is unavailable.'));
 
   List<GroceryItem> _items = [];
   GroceryCategory _selectedCategory = GroceryCategory.all;
@@ -82,43 +75,33 @@ class GroceryProvider extends ChangeNotifier {
   // ── Initialization ────────────────────────────────────────────────────────
 
   Future<void> loadItems() async {
-    final orderUuid = _orderUuid;
-    if (orderUuid != null) {
-      _items = (await _query.getOrder(orderUuid)).items;
-    }
+    _items = _orders.getActiveItems();
     notifyListeners();
   }
 
   Future<void> _saveItems() {
-    final orderUuid = _orderUuid;
-    final userUuid = _userUuid;
-    if (orderUuid == null || userUuid == null) return Future.value();
     final snapshot = _items.map((item) => item.copyWith()).toList();
-    final write = _writeQueue.then(
-      (_) => _query.saveOrderItems(
-        orderUuid: orderUuid,
-        userUuid: userUuid,
-        items: snapshot,
-      ),
-    );
+    final write = _writeQueue.then((_) => _orders.saveItems(snapshot));
     _lastWrite = write;
     _writeQueue = write.catchError((Object _) {});
     return write;
   }
 
   Future<String> startNewList() async {
-    final userUuid = _userUuid;
-    if (userUuid == null) throw StateError('No signed-in user is available.');
     await (_lastWrite ?? _writeQueue);
-    final order = await _query.startNewOrder(
-      userUuid: userUuid,
-      previousOrderUuid: _orderUuid,
-    );
-    _orderUuid = order.uuid;
+    final uuid = await _orders.startNewList();
     _items.clear();
     _undoStack.clear();
     notifyListeners();
-    return order.uuid;
+    return uuid;
+  }
+
+  Future<void> editSavedList(String uuid) async {
+    await (_lastWrite ?? _writeQueue);
+    await _orders.activateOrder(uuid);
+    _items = _orders.getActiveItems();
+    _undoStack.clear();
+    notifyListeners();
   }
 
   // ── CRUD ──────────────────────────────────────────────────────────────────
@@ -279,9 +262,13 @@ class GroceryProvider extends ChangeNotifier {
         name: savedItem.name,
         quantity: savedItem.quantity,
         unit: savedItem.unit,
-        categoryKey: parsed.categoryKey ?? GroceryCategory.other.storageKey,
+        categoryKey:
+            savedItem.categoryKey ??
+            parsed.categoryKey ??
+            GroceryCategory.other.storageKey,
         isChecked: false,
-        createdAt: DateTime.now(),
+        createdAt: savedItem.createdAt ?? DateTime.now(),
+        notes: savedItem.notes,
       );
       _items.add(item);
     }
