@@ -33,12 +33,12 @@ class UserModel {
   final DateTime? updateAt;
   final DateTime? lastSignInAt;
 
-  factory UserModel.fromFirebaseUser(User user) {
+  factory UserModel.fromFirebaseUser(User user, {String? uuid}) {
     if (user.uid.isEmpty) {
       throw StateError('Firebase Authentication did not provide a user UID.');
     }
     return UserModel(
-      uuid: const Uuid().v1(),
+      uuid: uuid ?? const Uuid().v1(),
       name: user.displayName,
       email: user.email,
       phoneNo: user.phoneNumber,

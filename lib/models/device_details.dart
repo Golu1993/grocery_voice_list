@@ -70,7 +70,7 @@ class DeviceDetails {
     'model': model,
     'deviceId': deviceId,
     'uuid': uuid,
-    'fcmToken': fcmToken,
+    if (fcmToken != null) 'fcmToken': fcmToken,
     if (activeUserId != null) 'activeUserId': activeUserId,
   };
 }

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
-import '../services/firestore_query.dart';
-import '../utils/utility.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, this.signIn});
@@ -34,12 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) setState(() => _isSigningIn = false);
     }
   }
-@override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-    _uploadDevice();
-  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -102,12 +95,5 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
-  }
-
-  void _uploadDevice()async {
-    final device = await Utility.getDeviceDetails();
-    await FirestoreQuery()
-        .saveDevice(device: device)
-        .timeout(const Duration(seconds: 20));
   }
 }

@@ -11,7 +11,9 @@ import 'providers/voice_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
+import 'services/firebase_service.dart';
 import 'services/firestore_query.dart';
+import 'services/firestore_query_guard.dart';
 import 'services/hive_order_repository.dart';
 import 'utils/app_theme.dart';
 import 'utils/utility.dart';
@@ -145,27 +147,180 @@ class _UserSession extends StatefulWidget {
   State<_UserSession> createState() => _UserSessionState();
 }
 
-class _UserSessionState extends State<_UserSession> {
+class _UserSessionState extends State<_UserSession>
+    with WidgetsBindingObserver {
   late Future<_SessionData> _openSession;
+  final FirebaseService _firebaseService = FirebaseService();
+  StreamSubscription<String>? _fcmTokenSubscription;
+  Future<void> _fcmTokenSync = Future<void>.value();
+  Future<void>? _profileSync;
+  bool _profileSynced = false;
+  bool _profileRetryAllowed = true;
+  bool _profileFailureDialogOpen = false;
+  String? _latestFcmToken;
+  String? _savedFcmToken;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _fcmTokenSubscription = _firebaseService.onTokenRefresh.listen(
+      _onTokenRefresh,
+      onError: (Object error) =>
+          debugPrint('Could not refresh the FCM token: $error'),
+    );
     _openSession = _openUserSession();
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    final subscription = _fcmTokenSubscription;
+    if (subscription != null) unawaited(subscription.cancel());
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _startProfileSync();
+      if (_profileSynced) unawaited(_refreshFcmToken());
+    }
+  }
+
+  void _onTokenRefresh(String token) {
+    if (token.isEmpty) return;
+    _latestFcmToken = token;
+    if (_profileSynced && token != _savedFcmToken) {
+      _queueFcmTokenSync(token);
+    }
+  }
+
+  Future<void> _refreshFcmToken() async {
+    try {
+      final token = await _firebaseService.getFcmToken();
+      if (mounted && token != null) _onTokenRefresh(token);
+    } catch (error) {
+      debugPrint('Could not get the FCM token: $error');
+    }
+  }
+
+  void _queueFcmTokenSync(String token) {
+    _fcmTokenSync = _fcmTokenSync.then((_) => _syncFcmToken(token));
+  }
+
+  Future<void> _syncFcmToken(String token) async {
+    try {
+      if (!mounted || AuthService.currentUser?.uid != widget.user.uid) return;
+      final deviceUuid = await Utility.getUniqueId();
+      if (!mounted || AuthService.currentUser?.uid != widget.user.uid) return;
+      await FirestoreQuery().saveFcmToken(
+        deviceUuid: deviceUuid,
+        fcmToken: token,
+      );
+      _savedFcmToken = token;
+    } catch (error) {
+      debugPrint('Could not save the FCM token: $error');
+    }
+  }
+
   Future<_SessionData> _openUserSession() async {
-    final query = FirestoreQuery();
-    final deviceUuid = await Utility.getUniqueId();
-    final profile = await query
-        .saveSignedInUser(firebaseUser: widget.user)
-        .timeout(const Duration(seconds: 20));
-    await query
-        .setActiveUserId(deviceUuid: deviceUuid, userUuid: profile.uuid)
-        .timeout(const Duration(seconds: 20));
     final orders = await HiveOrderRepository.open(widget.user.uid);
     final orderUuid = await orders.ensureActiveOrder();
+    _startProfileSync();
     return _SessionData(orders: orders, orderUuid: orderUuid);
+  }
+
+  void _startProfileSync() {
+    if (_profileSynced ||
+        !_profileRetryAllowed ||
+        _profileFailureDialogOpen ||
+        _profileSync != null ||
+        AuthService.currentUser?.uid != widget.user.uid) {
+      return;
+    }
+    final sync = _syncRemoteProfile();
+    _profileSync = sync;
+    unawaited(sync.whenComplete(() => _profileSync = null));
+  }
+
+  Future<void> _syncRemoteProfile() async {
+    try {
+      final query = FirestoreQuery();
+      final profile = await query.saveSignedInUser(firebaseUser: widget.user);
+      if (AuthService.currentUser?.uid != widget.user.uid) return;
+
+      String? fcmToken;
+      try {
+        fcmToken = await _firebaseService.getFcmToken(requestPermission: true);
+      } catch (error) {
+        // Device registration still works when FCM is temporarily unavailable.
+        debugPrint('Could not get the FCM token: $error');
+      }
+      if (AuthService.currentUser?.uid != widget.user.uid) return;
+      final tokenForDevice = _latestFcmToken ?? fcmToken;
+      final device = await Utility.getDeviceDetails(fcmToken: tokenForDevice);
+      if (AuthService.currentUser?.uid != widget.user.uid) return;
+      await query.saveDevice(device: device);
+      if (AuthService.currentUser?.uid != widget.user.uid) return;
+      await query.setActiveUserId(
+        deviceUuid: device.uuid,
+        userUuid: profile.uuid,
+      );
+      _profileSynced = true;
+      _savedFcmToken = tokenForDevice;
+      final latestToken = _latestFcmToken;
+      if (latestToken != null && latestToken != tokenForDevice) {
+        _queueFcmTokenSync(latestToken);
+      }
+    } catch (error) {
+      debugPrint('Could not sync user and device details: $error');
+      final failure = FirestoreQueryFailure.from(error);
+      if (!failure.canRetry) _profileRetryAllowed = false;
+      _showProfileSyncFailure(failure);
+    }
+  }
+
+  void _showProfileSyncFailure(FirestoreQueryFailure failure) {
+    if (!mounted ||
+        _profileFailureDialogOpen ||
+        AuthService.currentUser?.uid != widget.user.uid) {
+      return;
+    }
+    _profileFailureDialogOpen = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || AuthService.currentUser?.uid != widget.user.uid) {
+        _profileFailureDialogOpen = false;
+        return;
+      }
+      final retry = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(
+            failure.kind == FirestoreQueryFailureKind.offline
+                ? 'No internet connection'
+                : 'Profile sync failed',
+          ),
+          content: Text(
+            '${failure.message}\n\nYour local lists are still available.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(failure.canRetry ? 'Continue offline' : 'Close'),
+            ),
+            if (failure.canRetry)
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('Retry'),
+              ),
+          ],
+        ),
+      );
+      _profileFailureDialogOpen = false;
+      if (retry == true && mounted) _startProfileSync();
+    });
   }
 
   @override

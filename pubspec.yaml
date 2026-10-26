@@ -46,6 +46,8 @@ dependencies:
   device_info_plus: ^13.2.0
   android_id: ^0.6.0
   cloud_firestore: ^6.10.0
+  firebase_messaging: ^16.7.0
+  connectivity_plus: ^7.3.2
 
 dev_dependencies:
   flutter_test:
