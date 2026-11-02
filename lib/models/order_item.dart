@@ -1,43 +1,32 @@
-import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 
 import 'grocery_field.dart';
 
-part 'order.item.g.dart';
-
-@HiveType(typeId: 1)
-class OrderItem extends HiveObject {
-  @HiveField(0)
+class OrderItem {
   String time;
 
-  @HiveField(1)
   String storeName;
 
-  @HiveField(2)
   int itemCount;
 
-  @HiveField(3)
   double amount;
 
-  @HiveField(4)
   String status;
 
-  @HiveField(5)
   List<GroceryField> itemList;
 
-  @HiveField(6)
   bool isExpanded;
-  @HiveField(7)
   int orderId;
 
-  @HiveField(8)
   bool isCurrent;
 
-  @HiveField(9)
   String uuid;
 
-  @HiveField(10)
   bool completed;
+
+  bool isPinned;
+
+  DateTime? updatedAt;
 
   OrderItem({
     required this.time,
@@ -51,5 +40,26 @@ class OrderItem extends HiveObject {
     required this.isCurrent,
     String? uuid,
     this.completed = false,
+    this.isPinned = false,
+    this.updatedAt,
   }) : uuid = uuid ?? const Uuid().v1();
+
+  static int compareForDisplay(OrderItem a, OrderItem b) {
+    if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
+    return compareByUpdatedTime(a, b);
+  }
+
+  static int compareByUpdatedTime(OrderItem a, OrderItem b) {
+    final left = a.updatedAt;
+    final right = b.updatedAt;
+    if (left != null && right != null) {
+      final byUpdate = right.compareTo(left);
+      if (byUpdate != 0) return byUpdate;
+    } else if (left != null) {
+      return -1;
+    } else if (right != null) {
+      return 1;
+    }
+    return b.orderId.compareTo(a.orderId);
+  }
 }

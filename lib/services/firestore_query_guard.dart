@@ -36,14 +36,16 @@ class FirestoreQueryFailure implements Exception {
     FirestoreQueryFailureKind.temporary =>
       'The service is temporarily unavailable. Please try again.',
     FirestoreQueryFailureKind.permissionDenied =>
-      'This account does not have permission to sync its profile.',
+      'This account does not have permission to access this data.',
     FirestoreQueryFailureKind.unauthenticated =>
       'Your sign-in is no longer valid. Please sign in again.',
     FirestoreQueryFailureKind.invalidRequest =>
-      'The profile request could not be completed. Please contact support.',
-    FirestoreQueryFailureKind.other =>
-      'Could not sync your profile right now.',
+      'The request could not be completed. Please contact support.',
+    FirestoreQueryFailureKind.other => 'Could not reach Firestore right now.',
   };
+
+  @override
+  String toString() => message;
 
   static FirestoreQueryFailure from(Object error) {
     if (error is FirestoreQueryFailure) return error;
@@ -54,10 +56,12 @@ class FirestoreQueryFailure implements Exception {
       return switch (error.code) {
         'unavailable' || 'deadline-exceeded' || 'aborted' =>
           const FirestoreQueryFailure(FirestoreQueryFailureKind.temporary),
-        'permission-denied' =>
-          const FirestoreQueryFailure(FirestoreQueryFailureKind.permissionDenied),
-        'unauthenticated' =>
-          const FirestoreQueryFailure(FirestoreQueryFailureKind.unauthenticated),
+        'permission-denied' => const FirestoreQueryFailure(
+          FirestoreQueryFailureKind.permissionDenied,
+        ),
+        'unauthenticated' => const FirestoreQueryFailure(
+          FirestoreQueryFailureKind.unauthenticated,
+        ),
         'invalid-argument' || 'failed-precondition' || 'not-found' =>
           const FirestoreQueryFailure(FirestoreQueryFailureKind.invalidRequest),
         _ => const FirestoreQueryFailure(FirestoreQueryFailureKind.other),
@@ -67,7 +71,7 @@ class FirestoreQueryFailure implements Exception {
   }
 }
 
-/// Checks for an offline device and puts a deadline on server operations.
+/// Checks network connectivity and puts a deadline on server operations.
 /// Only reads are automatically retried; a timed-out write may still finish.
 class FirestoreQueryGuard {
   FirestoreQueryGuard({Connectivity? connectivity})
@@ -77,12 +81,17 @@ class FirestoreQueryGuard {
   static const _writeTimeout = Duration(seconds: 15);
   static const _connectionCheckTimeout = Duration(seconds: 3);
   static const _readRetryDelay = Duration(seconds: 1);
+  static final _offlineFailures =
+      StreamController<FirestoreQueryFailure>.broadcast();
+
+  static Stream<FirestoreQueryFailure> get offlineFailures =>
+      _offlineFailures.stream;
 
   final Connectivity _connectivity;
 
   Future<T> read<T>(Future<T> Function() query) async {
     for (var attempt = 0; attempt < 2; attempt++) {
-      await _ensureOnline();
+      await _checkConnectivity();
       try {
         return await query().timeout(_readTimeout);
       } catch (error) {
@@ -95,7 +104,7 @@ class FirestoreQueryGuard {
   }
 
   Future<T> write<T>(Future<T> Function() query) async {
-    await _ensureOnline();
+    await _checkConnectivity();
     try {
       return await query().timeout(_writeTimeout);
     } catch (error) {
@@ -103,18 +112,27 @@ class FirestoreQueryGuard {
     }
   }
 
-  Future<void> _ensureOnline() async {
+  Future<void> _checkConnectivity() async {
     try {
-      final connections = await _connectivity
-          .checkConnectivity()
-          .timeout(_connectionCheckTimeout);
-      if (connections.contains(ConnectivityResult.none)) {
-        throw const FirestoreQueryFailure(FirestoreQueryFailureKind.offline);
+      final connections = await _connectivity.checkConnectivity().timeout(
+        _connectionCheckTimeout,
+      );
+      if (connections.isEmpty ||
+          connections.every(
+            (connection) => connection == ConnectivityResult.none,
+          )) {
+        throw _offlineFailure();
       }
     } on FirestoreQueryFailure {
       rethrow;
     } catch (_) {
-      // A failed connection-type check is inconclusive; let Firestore decide.
+      // Let the Firestore operation report connectivity when this check fails.
     }
+  }
+
+  FirestoreQueryFailure _offlineFailure() {
+    const failure = FirestoreQueryFailure(FirestoreQueryFailureKind.offline);
+    _offlineFailures.add(failure);
+    return failure;
   }
 }

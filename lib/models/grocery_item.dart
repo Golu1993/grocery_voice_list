@@ -1,31 +1,21 @@
-import 'package:hive/hive.dart';
-
-part 'grocery_item.g.dart';
-
-@HiveType(typeId: 0)
-class GroceryItem extends HiveObject {
-  @HiveField(0)
+class GroceryItem {
   String id;
 
-  @HiveField(1)
   String name;
 
-  @HiveField(2)
   double quantity;
 
-  @HiveField(3)
-  String unit; // 'kg', 'g', 'l', 'ml', 'piece', 'packet', 'dozen', 'bottle', 'can', 'bundle'
+  // 'kg', 'g', 'l', 'ml', 'piece', 'packet', 'dozen', 'bottle', 'can', 'bundle'
+  String unit;
 
-  @HiveField(4)
   String categoryKey;
 
-  @HiveField(5)
   bool isChecked;
 
-  @HiveField(6)
+  bool isPinned;
+
   DateTime createdAt;
 
-  @HiveField(7)
   String? notes;
 
   GroceryItem({
@@ -35,6 +25,7 @@ class GroceryItem extends HiveObject {
     required this.unit,
     required this.categoryKey,
     this.isChecked = false,
+    this.isPinned = false,
     required this.createdAt,
     this.notes,
   });
@@ -46,6 +37,7 @@ class GroceryItem extends HiveObject {
     String? unit,
     String? categoryKey,
     bool? isChecked,
+    bool? isPinned,
     DateTime? createdAt,
     String? notes,
   }) {
@@ -56,9 +48,17 @@ class GroceryItem extends HiveObject {
       unit: unit ?? this.unit,
       categoryKey: categoryKey ?? this.categoryKey,
       isChecked: isChecked ?? this.isChecked,
+      isPinned: isPinned ?? this.isPinned,
       createdAt: createdAt ?? this.createdAt,
       notes: notes ?? this.notes,
     );
+  }
+
+  static int compareForDisplay(GroceryItem a, GroceryItem b) {
+    if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
+    if (a.isChecked != b.isChecked) return a.isChecked ? 1 : -1;
+    final byCreatedAt = a.createdAt.compareTo(b.createdAt);
+    return byCreatedAt != 0 ? byCreatedAt : a.id.compareTo(b.id);
   }
 
   @override

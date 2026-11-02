@@ -22,7 +22,9 @@ class SmoothGroceryCommandProcessor {
 
     switch (command.action) {
       case CommandAction.add:
-        if (command.itemName == null) return _unknownMessage;
+        if (command.itemName == null) {
+          throw const FormatException(_unknownMessage);
+        }
         return groceryProvider.addItem(
           name: command.itemName!,
           quantity: command.quantity ?? 1,
@@ -30,7 +32,9 @@ class SmoothGroceryCommandProcessor {
           categoryKey: command.categoryKey ?? 'other',
         );
       case CommandAction.addMore:
-        if (command.itemName == null) return _unknownMessage;
+        if (command.itemName == null) {
+          throw const FormatException(_unknownMessage);
+        }
         return await groceryProvider.addMoreToItem(
               command.itemName!,
               command.quantity ?? 1,
@@ -38,7 +42,9 @@ class SmoothGroceryCommandProcessor {
             ) ??
             'Done';
       case CommandAction.subtractQuantity:
-        if (command.itemName == null) return _unknownMessage;
+        if (command.itemName == null) {
+          throw const FormatException(_unknownMessage);
+        }
         return await groceryProvider.subtractFromItem(
               command.itemName!,
               command.quantity ?? 1,
@@ -47,7 +53,7 @@ class SmoothGroceryCommandProcessor {
             'Done';
       case CommandAction.setQuantity:
         if (command.itemName == null || command.quantity == null) {
-          return _unknownMessage;
+          throw const FormatException(_unknownMessage);
         }
         return await groceryProvider.setItemQuantity(
               command.itemName!,
@@ -57,11 +63,11 @@ class SmoothGroceryCommandProcessor {
             'Done';
       case CommandAction.remove:
         final target = command.itemName ?? itemContextName;
-        if (target == null) return _unknownMessage;
+        if (target == null) throw const FormatException(_unknownMessage);
         return await groceryProvider.deleteItemByName(target) ?? 'Done';
       case CommandAction.check:
         final target = command.itemName ?? itemContextName;
-        if (target == null) return _unknownMessage;
+        if (target == null) throw const FormatException(_unknownMessage);
         return await groceryProvider.checkItemByName(target) ?? 'Done';
       case CommandAction.undo:
         await groceryProvider.undo();
@@ -70,9 +76,9 @@ class SmoothGroceryCommandProcessor {
         await groceryProvider.clearAll();
         return 'List cleared';
       case CommandAction.uncheck:
-        return 'Uncheck is not supported yet';
+        throw const FormatException('Uncheck is not supported yet');
       case CommandAction.unknown:
-        return _unknownMessage;
+        throw const FormatException(_unknownMessage);
     }
   }
 

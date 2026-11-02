@@ -14,9 +14,10 @@ import 'services/auth_service.dart';
 import 'services/firebase_service.dart';
 import 'services/firestore_query.dart';
 import 'services/firestore_query_guard.dart';
-import 'services/hive_order_repository.dart';
+import 'services/hive_service.dart';
 import 'utils/app_theme.dart';
 import 'utils/utility.dart';
+import 'widgets/offline_connection_alert.dart';
 
 class GroceryVoiceApp extends StatelessWidget {
   const GroceryVoiceApp({super.key});
@@ -27,9 +28,8 @@ class GroceryVoiceApp extends StatelessWidget {
       title: 'Vocart',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.system,
-      home: const _AuthGate(),
+      themeMode: ThemeMode.light,
+      home: const OfflineConnectionAlert(child: _AuthGate()),
     );
   }
 }
@@ -107,6 +107,7 @@ class _AuthGateState extends State<_AuthGate> {
         _authStream ??= AuthService.authStateChanges();
         return StreamBuilder<User?>(
           stream: _authStream,
+          initialData: AuthService.currentUser,
           builder: (context, session) {
             if (session.hasError) {
               return _StatusScreen(
@@ -114,7 +115,8 @@ class _AuthGateState extends State<_AuthGate> {
                 onRetry: _retrySession,
               );
             }
-            if (session.connectionState == ConnectionState.waiting) {
+            if (session.connectionState == ConnectionState.waiting &&
+                !session.hasData) {
               return const _StatusScreen(message: 'Checking your session…');
             }
             final user = session.data;
@@ -150,26 +152,42 @@ class _UserSession extends StatefulWidget {
 class _UserSessionState extends State<_UserSession>
     with WidgetsBindingObserver {
   late Future<_SessionData> _openSession;
+  _SessionData? _restoredSession;
+  late FirestoreQuery _firestoreQuery;
   final FirebaseService _firebaseService = FirebaseService();
   StreamSubscription<String>? _fcmTokenSubscription;
   Future<void> _fcmTokenSync = Future<void>.value();
-  Future<void>? _profileSync;
-  bool _profileSynced = false;
-  bool _profileRetryAllowed = true;
-  bool _profileFailureDialogOpen = false;
+  bool _deviceRegistered = false;
   String? _latestFcmToken;
   String? _savedFcmToken;
+  String? _profileUuid;
+  String _sessionStatus = 'Opening your account…';
 
   @override
   void initState() {
     super.initState();
+    final savedProfileUuid = HiveService.readProfileUuid(
+      authUid: widget.user.uid,
+    );
+    _firestoreQuery = FirestoreQuery(ownerId: savedProfileUuid);
     WidgetsBinding.instance.addObserver(this);
     _fcmTokenSubscription = _firebaseService.onTokenRefresh.listen(
       _onTokenRefresh,
       onError: (Object error) =>
           debugPrint('Could not refresh the FCM token: $error'),
     );
-    _openSession = _openUserSession();
+    if (savedProfileUuid == null) {
+      _openSession = _openUserSession();
+    } else {
+      // The local login is valid until sign-out. Open Home without repeating
+      // the Firestore profile or device setup.
+      _profileUuid = savedProfileUuid;
+      _deviceRegistered = true;
+      final data = _SessionData(firestoreQuery: _firestoreQuery);
+      _restoredSession = data;
+      _openSession = Future.value(data);
+      unawaited(_refreshFcmToken());
+    }
   }
 
   @override
@@ -182,16 +200,15 @@ class _UserSessionState extends State<_UserSession>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _startProfileSync();
-      if (_profileSynced) unawaited(_refreshFcmToken());
+    if (state == AppLifecycleState.resumed && _deviceRegistered) {
+      unawaited(_refreshFcmToken());
     }
   }
 
   void _onTokenRefresh(String token) {
     if (token.isEmpty) return;
     _latestFcmToken = token;
-    if (_profileSynced && token != _savedFcmToken) {
+    if (_deviceRegistered && token != _savedFcmToken) {
       _queueFcmTokenSync(token);
     }
   }
@@ -212,9 +229,10 @@ class _UserSessionState extends State<_UserSession>
   Future<void> _syncFcmToken(String token) async {
     try {
       if (!mounted || AuthService.currentUser?.uid != widget.user.uid) return;
-      final deviceUuid = await Utility.getUniqueId();
+      final deviceUuid = await HiveService.getOrCreateDeviceUuid();
       if (!mounted || AuthService.currentUser?.uid != widget.user.uid) return;
-      await FirestoreQuery().saveFcmToken(
+      await _firestoreQuery.saveFcmToken(
+        userUuid: _profileUuid!,
         deviceUuid: deviceUuid,
         fcmToken: token,
       );
@@ -225,34 +243,45 @@ class _UserSessionState extends State<_UserSession>
   }
 
   Future<_SessionData> _openUserSession() async {
-    final orders = await HiveOrderRepository.open(widget.user.uid);
-    final orderUuid = await orders.ensureActiveOrder();
-    _startProfileSync();
-    return _SessionData(orders: orders, orderUuid: orderUuid);
-  }
-
-  void _startProfileSync() {
-    if (_profileSynced ||
-        !_profileRetryAllowed ||
-        _profileFailureDialogOpen ||
-        _profileSync != null ||
-        AuthService.currentUser?.uid != widget.user.uid) {
-      return;
+    if (AuthService.currentUser?.uid != widget.user.uid) {
+      throw StateError('The signed-in account changed while opening lists.');
     }
-    final sync = _syncRemoteProfile();
-    _profileSync = sync;
-    unawaited(sync.whenComplete(() => _profileSync = null));
+
+    _setSessionStatus('Uploading your profile…');
+    final profile = await _firestoreQuery.saveSignedInUser(
+      firebaseUser: widget.user,
+    );
+    if (AuthService.currentUser?.uid != widget.user.uid) {
+      throw StateError('The signed-in account changed while loading lists.');
+    }
+    _profileUuid = profile.uuid;
+    _firestoreQuery = FirestoreQuery(ownerId: profile.uuid);
+    _setSessionStatus('Uploading device details…');
+    await _registerDevice(profile.uuid);
+    if (AuthService.currentUser?.uid != widget.user.uid) {
+      throw StateError('The signed-in account changed while loading lists.');
+    }
+    _setSessionStatus('Finishing setup…');
+    await HiveService.saveLogin(
+      authUid: widget.user.uid,
+      profileUuid: profile.uuid,
+    );
+    return _SessionData(firestoreQuery: _firestoreQuery);
   }
 
-  Future<void> _syncRemoteProfile() async {
-    try {
-      final query = FirestoreQuery();
-      final profile = await query.saveSignedInUser(firebaseUser: widget.user);
-      if (AuthService.currentUser?.uid != widget.user.uid) return;
+  void _setSessionStatus(String status) {
+    _sessionStatus = status;
+    if (mounted) setState(() {});
+  }
 
+  Future<void> _registerDevice(String profileUuid) async {
+    try {
+      final query = _firestoreQuery;
       String? fcmToken;
       try {
-        fcmToken = await _firebaseService.getFcmToken(requestPermission: true);
+        fcmToken = await _firebaseService
+            .getFcmToken(requestPermission: true)
+            .timeout(const Duration(seconds: 12));
       } catch (error) {
         // Device registration still works when FCM is temporarily unavailable.
         debugPrint('Could not get the FCM token: $error');
@@ -261,99 +290,60 @@ class _UserSessionState extends State<_UserSession>
       final tokenForDevice = _latestFcmToken ?? fcmToken;
       final device = await Utility.getDeviceDetails(fcmToken: tokenForDevice);
       if (AuthService.currentUser?.uid != widget.user.uid) return;
-      await query.saveDevice(device: device);
+      await query.saveDevice(device: device, userUuid: profileUuid);
       if (AuthService.currentUser?.uid != widget.user.uid) return;
-      await query.setActiveUserId(
-        deviceUuid: device.uuid,
-        userUuid: profile.uuid,
-      );
-      _profileSynced = true;
+      _deviceRegistered = true;
       _savedFcmToken = tokenForDevice;
       final latestToken = _latestFcmToken;
       if (latestToken != null && latestToken != tokenForDevice) {
         _queueFcmTokenSync(latestToken);
       }
     } catch (error) {
-      debugPrint('Could not sync user and device details: $error');
-      final failure = FirestoreQueryFailure.from(error);
-      if (!failure.canRetry) _profileRetryAllowed = false;
-      _showProfileSyncFailure(failure);
+      if (error is FirestoreQueryFailure) {
+        throw StateError('Could not register your device: ${error.message}');
+      }
+      rethrow;
     }
   }
 
-  void _showProfileSyncFailure(FirestoreQueryFailure failure) {
-    if (!mounted ||
-        _profileFailureDialogOpen ||
-        AuthService.currentUser?.uid != widget.user.uid) {
-      return;
-    }
-    _profileFailureDialogOpen = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted || AuthService.currentUser?.uid != widget.user.uid) {
-        _profileFailureDialogOpen = false;
-        return;
-      }
-      final retry = await showDialog<bool>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(
-            failure.kind == FirestoreQueryFailureKind.offline
-                ? 'No internet connection'
-                : 'Profile sync failed',
-          ),
-          content: Text(
-            '${failure.message}\n\nYour local lists are still available.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text(failure.canRetry ? 'Continue offline' : 'Close'),
-            ),
-            if (failure.canRetry)
-              FilledButton(
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: const Text('Retry'),
-              ),
-          ],
-        ),
-      );
-      _profileFailureDialogOpen = false;
-      if (retry == true && mounted) _startProfileSync();
-    });
+  String _setupErrorMessage(Object error) {
+    if (error is FirestoreQueryFailure) return error.message;
+    if (error is StateError) return error.message.toString();
+    return AuthService.errorMessage(error);
   }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<_SessionData>(
       future: _openSession,
+      initialData: _restoredSession,
       builder: (context, session) {
         if (session.hasError) {
-          return _StatusScreen(
-            message: 'Could not open your session: ${session.error}',
-            onRetry: () => setState(() {
+          return LoginScreen(
+            setupError:
+                'Could not finish setup: ${_setupErrorMessage(session.error!)}',
+            onSetupRetry: () => setState(() {
+              _sessionStatus = 'Opening your account…';
               _openSession = _openUserSession();
             }),
           );
         }
-        if (session.connectionState != ConnectionState.done) {
-          return const _StatusScreen(message: 'Opening your session…');
+        if (!session.hasData) {
+          return LoginScreen(setupStatus: _sessionStatus);
         }
         final data = session.data!;
         return MultiProvider(
           providers: [
             ChangeNotifierProvider(
-              create: (_) => GroceryProvider(orderRepository: data.orders),
+              create: (_) =>
+                  GroceryProvider(firestoreQuery: data.firestoreQuery),
             ),
             ChangeNotifierProvider(create: (_) => VoiceProvider()),
             ChangeNotifierProvider(
-              create: (_) => OrderProvider(
-                orderRepository: data.orders,
-                activeOrderUuid: data.orderUuid,
-              ),
+              create: (_) => OrderProvider(firestoreQuery: data.firestoreQuery),
             ),
           ],
-          child: const _AppLoader(),
+          child: const HomeScreen(),
         );
       },
     );
@@ -361,10 +351,9 @@ class _UserSessionState extends State<_UserSession>
 }
 
 class _SessionData {
-  const _SessionData({required this.orders, required this.orderUuid});
+  const _SessionData({required this.firestoreQuery});
 
-  final HiveOrderRepository orders;
-  final String orderUuid;
+  final FirestoreQuery firestoreQuery;
 }
 
 class _StatusScreen extends StatelessWidget {
@@ -394,51 +383,5 @@ class _StatusScreen extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class _AppLoader extends StatefulWidget {
-  const _AppLoader();
-
-  @override
-  State<_AppLoader> createState() => _AppLoaderState();
-}
-
-class _AppLoaderState extends State<_AppLoader> {
-  bool _loaded = false;
-  String? _loadError;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
-  }
-
-  Future<void> _load() async {
-    try {
-      await Future.wait([
-        context.read<GroceryProvider>().loadItems(),
-        context.read<OrderProvider>().refreshOrders(),
-      ]);
-      if (mounted) setState(() => _loaded = true);
-    } catch (error) {
-      if (mounted) setState(() => _loadError = error.toString());
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_loadError != null) {
-      return _StatusScreen(
-        message: 'Could not load your lists: $_loadError',
-        onRetry: () {
-          setState(() => _loadError = null);
-          _load();
-        },
-      );
-    }
-    return _loaded
-        ? const HomeScreen()
-        : const _StatusScreen(message: 'Loading your lists…');
   }
 }

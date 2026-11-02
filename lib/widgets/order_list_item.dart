@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:intl/intl.dart';
 import 'package:vocart/models/order_item.dart';
 
 import '../utils/app_colors.dart';
+import 'pin_button.dart';
 
 class OrderListItemItem extends StatelessWidget {
   const OrderListItemItem({
@@ -13,6 +15,8 @@ class OrderListItemItem extends StatelessWidget {
     required this.onShare,
     required this.onOpen,
     required this.onToggleExpanded,
+    required this.onTogglePinned,
+    this.isPinning = false,
   });
 
   final OrderItem orderItem;
@@ -21,17 +25,14 @@ class OrderListItemItem extends StatelessWidget {
   final VoidCallback onShare;
   final VoidCallback onOpen;
   final VoidCallback onToggleExpanded;
+  final VoidCallback onTogglePinned;
+  final bool isPinning;
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     final isActive = orderItem.isCurrent;
     final itemCount = orderItem.itemList.length;
-    final preview = orderItem.itemList
-        .take(2)
-        .map((item) => item.name)
-        .join(' • ');
-    final title = preview + (itemCount > 2 ? ' +${itemCount - 2} more' : '');
 
     return Slidable(
       key: ValueKey('order-${orderItem.orderId}'),
@@ -93,7 +94,7 @@ class OrderListItemItem extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            title,
+                            orderItem.storeName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: Theme.of(context).textTheme.titleSmall
@@ -101,7 +102,9 @@ class OrderListItemItem extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            orderItem.time,
+                            orderItem.updatedAt == null
+                                ? orderItem.time
+                                : 'Updated ${DateFormat('MMM d, yyyy h:mm a').format(orderItem.updatedAt!)}',
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(color: colors.onSurfaceVariant),
                           ),
@@ -137,6 +140,12 @@ class OrderListItemItem extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
+                    PinButton(
+                      isPinned: orderItem.isPinned,
+                      isSaving: isPinning,
+                      onPressed: onTogglePinned,
+                      label: orderItem.storeName,
+                    ),
                     TextButton(
                       onPressed: onToggleExpanded,
                       style: TextButton.styleFrom(
@@ -172,13 +181,21 @@ class OrderListItemItem extends StatelessWidget {
                       children: [
                         Divider(height: 1, color: colors.outlineVariant),
                         const SizedBox(height: 12),
-                        ...orderItem.itemList.map(
-                          (item) => _OrderItemRow(
-                            name: item.name,
-                            quantity: '${item.quantity} ${item.unit}',
-                            isChecked: item.isChecked ?? false,
+                        if (orderItem.itemList.isEmpty)
+                          Text(
+                            'No items in this list yet.',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: colors.onSurfaceVariant),
+                          )
+                        else
+                          ...orderItem.itemList.map(
+                            (item) => _OrderItemRow(
+                              name: item.name,
+                              quantity: '${item.quantity} ${item.unit}',
+                              isChecked: item.isChecked ?? false,
+                              isPinned: item.isPinned,
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   ),
@@ -228,11 +245,13 @@ class _OrderItemRow extends StatelessWidget {
     required this.name,
     required this.quantity,
     required this.isChecked,
+    required this.isPinned,
   });
 
   final String name;
   final String quantity;
   final bool isChecked;
+  final bool isPinned;
 
   @override
   Widget build(BuildContext context) {
@@ -247,6 +266,10 @@ class _OrderItemRow extends StatelessWidget {
             color: isChecked ? colors.primary : colors.outline,
           ),
           const SizedBox(width: 10),
+          if (isPinned) ...[
+            Icon(Icons.push_pin_rounded, size: 14, color: colors.primary),
+            const SizedBox(width: 4),
+          ],
           Expanded(
             child: Text(
               name,

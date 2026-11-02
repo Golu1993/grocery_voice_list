@@ -1,40 +1,63 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{uid} {
-      allow read: if request.auth != null && request.auth.uid == uid;
-      allow create, update: if request.auth != null
-        && request.auth.uid == uid
-        && request.resource.data.uid == uid;
-      allow delete: if request.auth != null && request.auth.uid == uid;
+    function ownsProfile(profileId) {
+      return request.auth != null
+        && profileId is string
+        && get(/databases/$(database)/documents/users/$(profileId)).data.loginId
+          == request.auth.uid;
     }
 
-    match /devices/{deviceDocumentId} {
-      function validDeviceWrite() {
-        return request.auth != null
-          && request.resource.data.userUid == request.auth.uid
-          && deviceDocumentId == request.auth.uid + '_' + request.resource.data.uuid
-          && request.resource.data.keys().hasOnly([
-            'userUid', 'platform', 'name', 'model', 'deviceId', 'uuid', 'fcmToken'
-          ])
-          && request.resource.data.keys().hasAll([
-            'userUid', 'platform', 'name', 'model', 'deviceId', 'uuid', 'fcmToken'
-          ])
-          && request.resource.data.platform is string
-          && request.resource.data.name is string
-          && request.resource.data.model is string
-          && request.resource.data.deviceId is string
-          && request.resource.data.uuid is string
-          && (request.resource.data.fcmToken == null
-            || request.resource.data.fcmToken is string);
-      }
+    function ownsUserData(data) {
+      return request.auth != null
+        && (data.get('loginId', '') == request.auth.uid
+          || data.get('authUid', '') == request.auth.uid);
+    }
 
-      allow read: if request.auth != null
-        && resource.data.userUid == request.auth.uid;
-      allow create: if validDeviceWrite();
-      allow update: if resource.data.userUid == request.auth.uid
-        && validDeviceWrite();
+    match /users/{profileId} {
+      allow read: if ownsUserData(resource.data);
+      allow create: if request.auth != null
+        && request.resource.data.uuid == profileId
+        && request.resource.data.loginId == request.auth.uid;
+      allow update: if ownsUserData(resource.data)
+        && request.resource.data.uuid == profileId
+        && request.resource.data.loginId == request.auth.uid;
+      allow delete: if ownsUserData(resource.data);
+    }
+
+    match /devices/{deviceId} {
+      allow read: if ownsProfile(resource.data.get('activeUserId', ''));
+      allow create: if deviceId == request.resource.data.activeUserId
+          + '_' + request.resource.data.uuid
+        && ownsProfile(request.resource.data.get('activeUserId', ''));
+      allow update: if ownsProfile(resource.data.get('activeUserId', ''))
+        && deviceId == request.resource.data.activeUserId
+          + '_' + request.resource.data.uuid
+        && request.resource.data.activeUserId == resource.data.activeUserId;
       allow delete: if false;
+    }
+
+    match /lists/{listId} {
+      allow read: if ownsProfile(resource.data.ownerId);
+      allow create: if request.resource.data.listId == listId
+        && ownsProfile(request.resource.data.ownerId);
+      allow update: if ownsProfile(resource.data.ownerId)
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.listId == listId;
+      allow delete: if ownsProfile(resource.data.ownerId);
+    }
+
+    match /list_items/{listItemId} {
+      allow read: if ownsProfile(resource.data.ownerId);
+      allow create: if request.resource.data.listItemId == listItemId
+        && ownsProfile(request.resource.data.ownerId)
+        && get(/databases/$(database)/documents/lists/$(request.resource.data.listId)).data.ownerId
+          == request.resource.data.ownerId;
+      allow update: if ownsProfile(resource.data.ownerId)
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.listId == resource.data.listId
+        && request.resource.data.listItemId == listItemId;
+      allow delete: if ownsProfile(resource.data.ownerId);
     }
   }
 }

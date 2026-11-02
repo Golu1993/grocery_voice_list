@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../models/order_item.dart';
 import '../providers/grocery_provider.dart';
 import '../providers/order_provider.dart';
+import '../services/firestore_query_guard.dart';
 import '../utils/app_colors.dart';
 import 'grocery_pdf_preview_screen.dart';
 
@@ -18,23 +19,39 @@ class MyOrdersScreen extends StatefulWidget {
 }
 
 class _MyOrdersScreenState extends State<MyOrdersScreen> {
+  bool _loading = true;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      try {
-        await context.read<OrderProvider>().refreshOrders();
-      } catch (error) {
-        if (mounted) _showError(error);
-      }
+      _refreshOrders();
     });
   }
 
+  Future<void> _refreshOrders() async {
+    try {
+      await context.read<OrderProvider>().refreshOrders();
+    } catch (error) {
+      if (mounted) _showError(error);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   void _showError(Object error) {
+    if (error is FirestoreQueryFailure &&
+        error.kind == FirestoreQueryFailureKind.offline) {
+      // The app-wide connection alert already explains this failure.
+      return;
+    }
+    final message = error is FirestoreQueryFailure
+        ? error.message
+        : error.toString();
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text('Could not update lists: $error')));
+    ).showSnackBar(SnackBar(content: Text('Could not update lists: $message')));
   }
 
   Future<void> _openList(OrderItem order) async {
@@ -52,7 +69,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
             const Expanded(child: Text('Open this list?')),
             IconButton(
               onPressed: () => Navigator.pop(dialogContext),
-              icon: const Icon(Icons.cancel_outlined,color: Colors.red,),
+              icon: const Icon(Icons.cancel_outlined, color: Colors.red),
             ),
           ],
         ),
@@ -62,16 +79,25 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
             TextButton(
               onPressed: () =>
                   Navigator.pop(dialogContext, _OpenListAction.merge),
-              child: const Text('Merge',style: TextStyle(fontWeight: FontWeight.bold),),
+              child: const Text(
+                'Merge',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           TextButton(
             onPressed: () =>
                 Navigator.pop(dialogContext, _OpenListAction.newList),
-            child: const Text('New List',style: TextStyle(fontWeight: FontWeight.bold),),
+            child: const Text(
+              'New List',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, _OpenListAction.edit),
-            child: const Text('Edit',style: TextStyle(fontWeight: FontWeight.bold),),
+            child: const Text(
+              'Edit',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -106,60 +132,78 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.of(context).surfaceContainerLowest,
-      body: Consumer<OrderProvider>(
-        builder: (context, provider, _) {
-          if (provider.orders.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.shopping_cart_outlined,
-                    size: 70,
-                    color: Colors.grey,
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    "No Orders Yet",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    "Your orders will appear here.",
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-            );
-          }
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : Consumer<OrderProvider>(
+              builder: (context, provider, _) {
+                final visibleOrders = provider.orders
+                    .where((order) => order.itemList.isNotEmpty)
+                    .toList();
+                if (visibleOrders.isEmpty) {
+                  return const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.list_alt_outlined,
+                          size: 70,
+                          color: Colors.grey,
+                        ),
+                        SizedBox(height: 12),
+                        Text(
+                          'No lists with items yet',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Add items to a list to see it here.',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  );
+                }
 
-          return ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            itemCount: provider.orders.length,
-            itemBuilder: (context, index) {
-              final order = provider.orders[index];
-              return OrderListItemItem(
-                orderItem: order,
-                index: index,
-                onDelete: () async {
-                  try {
-                    await provider.removeOrder(index);
-                  } catch (error) {
-                    if (mounted) _showError(error);
-                  }
-                },
-                onOpen: () => _openList(order),
-                onToggleExpanded: () => provider.toggleExpanded(index),
-                onShare: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => GroceryPdfPreviewScreen(order: order),
-                  ),
-                ),
-              );
-            },
-          );
-        },
-      ),
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  itemCount: visibleOrders.length,
+                  itemBuilder: (context, visibleIndex) {
+                    final order = visibleOrders[visibleIndex];
+                    return OrderListItemItem(
+                      key: ValueKey(order.uuid),
+                      orderItem: order,
+                      index: visibleIndex,
+                      isPinning: provider.isPinning(order.uuid),
+                      onTogglePinned: () async {
+                        try {
+                          await provider.togglePinned(order.uuid);
+                        } catch (error) {
+                          if (mounted) _showError(error);
+                        }
+                      },
+                      onDelete: () async {
+                        try {
+                          await provider.removeOrder(order.uuid);
+                        } catch (error) {
+                          if (mounted) _showError(error);
+                        }
+                      },
+                      onOpen: () => _openList(order),
+                      onToggleExpanded: () =>
+                          provider.toggleExpanded(order.uuid),
+                      onShare: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => GroceryPdfPreviewScreen(order: order),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
     );
   }
 }

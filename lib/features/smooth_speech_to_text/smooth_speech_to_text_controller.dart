@@ -28,6 +28,7 @@ class SmoothSpeechToTextController extends ChangeNotifier {
   String _partialText = '';
   String _errorMessage = '';
   Timer? _watchdog;
+  Future<void>? _stopOperation;
   DateTime _restartAfter = DateTime.fromMillisecondsSinceEpoch(0);
   bool _wantsToListen = false;
   bool _sessionStarting = false;
@@ -195,8 +196,32 @@ class SmoothSpeechToTextController extends ChangeNotifier {
   /// Done. Grocery voice entry opts into [submitPendingPhrase] so the last
   /// spoken item is not silently lost, while general dictation can still stop
   /// without treating an unfinished phrase as a command.
-  Future<void> stop({bool submitPendingPhrase = false}) async {
-    if (_disposed || (!_wantsToListen && !_state.isActive)) return;
+  Future<void> stop({bool submitPendingPhrase = false}) {
+    final stopping = _stopOperation;
+    if (stopping != null) return stopping;
+    if (_disposed || (!_wantsToListen && !_state.isActive)) {
+      return Future<void>.value();
+    }
+    // Finalizing the last phrase can itself request a spoken close. Share the
+    // stop operation so that it cannot submit twice or stop the native mic twice.
+    final completed = Completer<void>();
+    _stopOperation = completed.future;
+    unawaited(
+      _stopOnce(submitPendingPhrase: submitPendingPhrase).then(
+        (_) {
+          _stopOperation = null;
+          completed.complete();
+        },
+        onError: (Object error, StackTrace stack) {
+          _stopOperation = null;
+          completed.completeError(error, stack);
+        },
+      ),
+    );
+    return completed.future;
+  }
+
+  Future<void> _stopOnce({required bool submitPendingPhrase}) async {
     _wantsToListen = false;
     ++_generation;
     _watchdog?.cancel();

@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 
-/// A Firestore user profile; orders are stored locally per signed-in account.
+/// A Firestore user profile identified by an app-generated UUID.
 class UserModel {
   const UserModel({
     required this.uuid,

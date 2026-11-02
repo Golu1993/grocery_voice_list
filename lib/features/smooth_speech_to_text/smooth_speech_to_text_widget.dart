@@ -132,7 +132,7 @@ class _SmoothSpeechToTextWidgetState extends State<SmoothSpeechToTextWidget> {
         submitPendingPhrase: widget.submitPendingPhraseOnClose,
       );
     }
-    widget.onClose?.call();
+    if (mounted) widget.onClose?.call();
   }
 
   @override

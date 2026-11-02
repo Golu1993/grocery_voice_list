@@ -2,20 +2,15 @@ import 'dart:io';
 
 import 'package:android_id/android_id.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:uuid/uuid.dart';
 
 import '../models/device_details.dart';
+import '../services/hive_service.dart';
 
 class Utility {
-  static const _deviceIdentityBox = 'vocart_device_identity';
-  static const _profileIdentityBox = 'vocart_profile_identity';
-  static const _uuidKey = 'uuid';
-
   /// Returns the Android ID or iOS identifier for vendor.
   /// Throws if the platform cannot provide an identifier.
   static Future<String> getDeviceId() async {
@@ -23,42 +18,17 @@ class Utility {
     return _deviceIdFrom(info);
   }
 
-  /// Returns the locally persisted UUID v1 for this app installation.
-  static Future<String> getUniqueId() => _getOrCreateUuid();
-
-  /// Keeps a new profile's document ID stable if a timed-out write is retried.
-  static Future<String> getOrCreateProfileUuid(String authUid) async {
-    if (authUid.isEmpty) throw ArgumentError.value(authUid, 'authUid');
-    final box = await Hive.openBox<String>(_profileIdentityBox);
-    final saved = box.get(authUid);
-    if (saved != null && saved.isNotEmpty) return saved;
-
-    final uuid = const Uuid().v1();
-    await box.put(authUid, uuid);
-    return uuid;
-  }
-
   /// Returns the current device's common details on supported platforms.
   static Future<DeviceDetails> getDeviceDetails({String? fcmToken}) async {
     final info = await DeviceInfoPlugin().deviceInfo;
     final deviceId = await _deviceIdFrom(info);
-    final uuid = await getUniqueId();
+    final uuid = await HiveService.getOrCreateDeviceUuid();
     return DeviceDetails.fromDeviceInfo(
       info,
       deviceId: deviceId,
       uuid: uuid,
       fcmToken: fcmToken,
     );
-  }
-
-  static Future<String> _getOrCreateUuid() async {
-    final box = await Hive.openBox<String>(_deviceIdentityBox);
-    final saved = box.get(_uuidKey);
-    if (saved != null && saved.isNotEmpty) return saved;
-
-    final uuid = const Uuid().v1();
-    await box.put(_uuidKey, uuid);
-    return uuid;
   }
 
   static Future<String> _deviceIdFrom(BaseDeviceInfo info) async {

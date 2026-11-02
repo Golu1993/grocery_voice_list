@@ -5,6 +5,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import 'hive_service.dart';
+
 class AuthService {
   static bool _googleInitialized = false;
 
@@ -78,7 +80,13 @@ class AuthService {
         // Firebase sign-out is the app's access gate and must still run.
       }
     }
-    await FirebaseAuth.instance.signOut().timeout(const Duration(seconds: 15));
+    try {
+      await FirebaseAuth.instance.signOut().timeout(
+        const Duration(seconds: 15),
+      );
+    } finally {
+      await HiveService.clearLogin();
+    }
   }
 
   static String errorMessage(Object error) {

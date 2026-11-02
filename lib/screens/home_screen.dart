@@ -9,6 +9,8 @@ import '../models/grocery_item.dart';
 import '../providers/grocery_provider.dart';
 import '../providers/order_provider.dart';
 import '../providers/voice_provider.dart';
+import '../services/auth_service.dart';
+import '../services/firestore_query_guard.dart';
 import '../utils/app_colors.dart';
 import '../widgets/category_filter_row.dart';
 import '../widgets/custom_appbar.dart';
@@ -31,7 +33,46 @@ class _HomeScreenState extends State<HomeScreen> {
   final _searchCtrl = TextEditingController();
   int indexClick = 0;
   bool _showSearch = false;
+  bool _listsLoaded = false;
+  Object? _listLoadError;
   Timer? _deleteSnackBarTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadLists());
+  }
+
+  Future<void> _loadLists() async {
+    if (!mounted) return;
+    setState(() => _listLoadError = null);
+    final grocery = context.read<GroceryProvider>();
+    final orders = context.read<OrderProvider>();
+    try {
+      final activeId = await orders.firestoreQuery.ensureActiveOrder();
+      if (!mounted) return;
+      orders.setActiveOrder(activeId);
+      await Future.wait([grocery.loadItems(), orders.refreshOrders()]);
+      if (mounted) setState(() => _listsLoaded = true);
+    } catch (error) {
+      if (mounted) setState(() => _listLoadError = error);
+    }
+  }
+
+  String _listErrorMessage(Object error) =>
+      error is FirestoreQueryFailure ? error.message : error.toString();
+
+  Future<void> _signOutAfterLoadError() async {
+    try {
+      await AuthService.signOut();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AuthService.errorMessage(error))),
+        );
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -99,9 +140,17 @@ class _HomeScreenState extends State<HomeScreen> {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () {
-              grocery.clearChecked();
-              Navigator.pop(ctx);
+            onPressed: () async {
+              try {
+                await grocery.clearChecked();
+                if (ctx.mounted) Navigator.pop(ctx);
+              } catch (error) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Could not remove items: $error')),
+                  );
+                }
+              }
             },
             child: const Text('Remove'),
           ),
@@ -118,12 +167,36 @@ class _HomeScreenState extends State<HomeScreen> {
     Get.to(() => EditItemScreen(groceryProvider: grocery, item: item));
   }
 
+  Future<void> _toggleItemPinned(String id) async {
+    try {
+      await context.read<GroceryProvider>().togglePinned(id);
+    } catch (error) {
+      if (!mounted) return;
+      if (error is FirestoreQueryFailure &&
+          error.kind == FirestoreQueryFailureKind.offline) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not update item pin: $error')),
+      );
+    }
+  }
+
   Future<void> _handleDelete(BuildContext context, String id) async {
     final grocery = context.read<GroceryProvider>();
     final voice = context.read<VoiceProvider>();
     final itemName = grocery.allItems.firstWhere((i) => i.id == id).name;
 
-    await grocery.deleteItem(id);
+    try {
+      await grocery.deleteItem(id);
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not delete item: $error')),
+        );
+      }
+      return;
+    }
     voice.speak('$itemName removed');
 
     if (!context.mounted) return;
@@ -136,8 +209,16 @@ class _HomeScreenState extends State<HomeScreen> {
         action: SnackBarAction(
           label: 'Undo',
           onPressed: () async {
-            await grocery.undo();
-            voice.speak('Restored $itemName');
+            try {
+              await grocery.undo();
+              voice.speak('Restored $itemName');
+            } catch (error) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Could not restore item: $error')),
+                );
+              }
+            }
           },
         ),
         duration: const Duration(seconds: 3),
@@ -165,8 +246,51 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final grocery = context.read<GroceryProvider>();
     final colorScheme = AppColors.of(context);
+
+    if (!_listsLoaded) {
+      return Scaffold(
+        backgroundColor: colorScheme.surfaceContainerLowest,
+        appBar: const CustomAppBar(
+          title: 'Home',
+          showLogoInLeading: true,
+          showBackButton: false,
+        ),
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_listLoadError == null) ...[
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 20),
+                    const Text('Loading your lists…'),
+                  ] else ...[
+                    Text(
+                      'Could not load your lists: ${_listErrorMessage(_listLoadError!)}',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+                    FilledButton(
+                      onPressed: _loadLists,
+                      child: const Text('Retry'),
+                    ),
+                    TextButton(
+                      onPressed: _signOutAfterLoadError,
+                      child: const Text('Sign out'),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final grocery = context.read<GroceryProvider>();
 
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,
@@ -340,9 +464,12 @@ class _HomeScreenState extends State<HomeScreen> {
   String getTitle(int indexClick) {
     switch (indexClick) {
       case 0:
-        return '';
+        for (final list in context.watch<OrderProvider>().orders) {
+          if (list.isCurrent) return list.storeName;
+        }
+        return 'Home';
       case 1:
-        return 'My Orders';
+        return 'My Lists';
       case 2:
         return 'App Info';
       default:
@@ -442,10 +569,22 @@ class _HomeScreenState extends State<HomeScreen> {
                     return GroceryListItem(
                       key: ValueKey(item.id),
                       item: item,
+                      isPinning: grocery.isPinning(item.id),
+                      onTogglePinned: () => _toggleItemPinned(item.id),
                       onToggle: () async {
-                        final msg = await grocery.toggleChecked(item.id);
-                        if (msg != null && context.mounted) {
-                          context.read<VoiceProvider>().speak(msg);
+                        try {
+                          final msg = await grocery.toggleChecked(item.id);
+                          if (msg != null && context.mounted) {
+                            context.read<VoiceProvider>().speak(msg);
+                          }
+                        } catch (error) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Could not update item: $error'),
+                              ),
+                            );
+                          }
                         }
                       },
                       onDelete: () => _handleDelete(context, item.id),

@@ -3,6 +3,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import '../models/grocery_item.dart';
 import '../utils/constants.dart';
 import '../utils/unit_converter.dart';
+import 'pin_button.dart';
 
 class GroceryListItem extends StatelessWidget {
   final GroceryItem item;
@@ -10,6 +11,8 @@ class GroceryListItem extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback onEdit;
   final VoidCallback onVoice;
+  final VoidCallback onTogglePinned;
+  final bool isPinning;
 
   const GroceryListItem({
     super.key,
@@ -18,6 +21,8 @@ class GroceryListItem extends StatelessWidget {
     required this.onDelete,
     required this.onEdit,
     required this.onVoice,
+    required this.onTogglePinned,
+    this.isPinning = false,
   });
 
   @override
@@ -67,6 +72,8 @@ class GroceryListItem extends StatelessWidget {
           onToggle: onToggle,
           onEdit: onEdit,
           onVoice: onVoice,
+          onTogglePinned: onTogglePinned,
+          isPinning: isPinning,
         ),
       ),
     );
@@ -79,6 +86,8 @@ class _ItemCard extends StatelessWidget {
   final VoidCallback onToggle;
   final VoidCallback onEdit;
   final VoidCallback onVoice;
+  final VoidCallback onTogglePinned;
+  final bool isPinning;
 
   const _ItemCard({
     required this.item,
@@ -86,6 +95,8 @@ class _ItemCard extends StatelessWidget {
     required this.onToggle,
     required this.onEdit,
     required this.onVoice,
+    required this.onTogglePinned,
+    required this.isPinning,
   });
 
   @override
@@ -126,23 +137,11 @@ class _ItemCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 9),
-              // Category icon
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: item.isChecked
-                      ? catColor.withValues(alpha: 0.08)
-                      : catColor.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  category.icon,
-                  size: 16,
-                  color: item.isChecked
-                      ? catColor.withValues(alpha: 0.4)
-                      : catColor,
-                ),
+              PinButton(
+                isPinned: item.isPinned,
+                isSaving: isPinning,
+                onPressed: onTogglePinned,
+                label: item.name,
               ),
               const SizedBox(width: 9),
               // Item name + notes

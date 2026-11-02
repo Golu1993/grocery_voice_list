@@ -220,78 +220,87 @@ class VoiceProvider extends ChangeNotifier {
     }
     String? feedback;
 
-    switch (command.action) {
-      case CommandAction.add:
-        if (command.itemName != null) {
-          feedback = await groceryProvider.addItem(
-            name: command.itemName!,
-            quantity: command.quantity ?? 1.0,
-            unit: command.unit ?? 'piece',
-            categoryKey: command.categoryKey ?? 'other',
-          );
-        }
-        break;
+    try {
+      switch (command.action) {
+        case CommandAction.add:
+          if (command.itemName != null) {
+            feedback = await groceryProvider.addItem(
+              name: command.itemName!,
+              quantity: command.quantity ?? 1.0,
+              unit: command.unit ?? 'piece',
+              categoryKey: command.categoryKey ?? 'other',
+            );
+          }
+          break;
 
-      case CommandAction.addMore:
-        if (command.itemName != null) {
-          feedback = await groceryProvider.addMoreToItem(
-            command.itemName!,
-            command.quantity ?? 1.0,
-            command.unit ?? 'piece',
-          );
-        }
-        break;
+        case CommandAction.addMore:
+          if (command.itemName != null) {
+            feedback = await groceryProvider.addMoreToItem(
+              command.itemName!,
+              command.quantity ?? 1.0,
+              command.unit ?? 'piece',
+            );
+          }
+          break;
 
-      case CommandAction.subtractQuantity:
-        if (command.itemName != null) {
-          feedback = await groceryProvider.subtractFromItem(
-            command.itemName!,
-            command.quantity ?? 1.0,
-            command.unit ?? 'piece',
-          );
-        }
-        break;
+        case CommandAction.subtractQuantity:
+          if (command.itemName != null) {
+            feedback = await groceryProvider.subtractFromItem(
+              command.itemName!,
+              command.quantity ?? 1.0,
+              command.unit ?? 'piece',
+            );
+          }
+          break;
 
-      case CommandAction.setQuantity:
-        if (command.itemName != null && command.quantity != null) {
-          feedback = await groceryProvider.setItemQuantity(
-            command.itemName!,
-            command.quantity!,
-            command.unit ?? 'piece',
-          );
-        }
-        break;
+        case CommandAction.setQuantity:
+          if (command.itemName != null && command.quantity != null) {
+            feedback = await groceryProvider.setItemQuantity(
+              command.itemName!,
+              command.quantity!,
+              command.unit ?? 'piece',
+            );
+          }
+          break;
 
-      case CommandAction.remove:
-        final target = command.itemName ?? _itemContextName;
-        if (target != null) {
-          feedback = await groceryProvider.deleteItemByName(target);
-        }
-        break;
+        case CommandAction.remove:
+          final target = command.itemName ?? _itemContextName;
+          if (target != null) {
+            feedback = await groceryProvider.deleteItemByName(target);
+          }
+          break;
 
-      case CommandAction.check:
-        final target = command.itemName ?? _itemContextName;
-        if (target != null) {
-          feedback = await groceryProvider.checkItemByName(target);
-        }
-        break;
+        case CommandAction.check:
+          final target = command.itemName ?? _itemContextName;
+          if (target != null) {
+            feedback = await groceryProvider.checkItemByName(target);
+          }
+          break;
 
-      case CommandAction.undo:
-        await groceryProvider.undo();
-        feedback = 'Undone';
-        break;
+        case CommandAction.undo:
+          await groceryProvider.undo();
+          feedback = 'Undone';
+          break;
 
-      case CommandAction.clear:
-        await groceryProvider.clearAll();
-        feedback = 'List cleared';
-        break;
+        case CommandAction.clear:
+          await groceryProvider.clearAll();
+          feedback = 'List cleared';
+          break;
 
-      case CommandAction.uncheck:
-        break;
+        case CommandAction.uncheck:
+          break;
 
-      case CommandAction.unknown:
-        feedback = 'Sorry, I didn\'t understand that. Try: "add 2 kg tomatoes"';
-        break;
+        case CommandAction.unknown:
+          feedback =
+              'Sorry, I didn\'t understand that. Try: "add 2 kg tomatoes"';
+          break;
+      }
+    } catch (error) {
+      _lastError = '$error';
+      _status = VoiceStatus.error;
+      _statusMessage = 'Could not update the list. Check your connection.';
+      notifyListeners();
+      return;
     }
 
     _status = VoiceStatus.done;

@@ -2,21 +2,20 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../models/grocery_field.dart';
 import '../models/grocery_item.dart';
-import '../services/hive_order_repository.dart';
+import '../services/firestore_query.dart';
 import '../services/voice_parser.dart';
 import '../utils/constants.dart';
 import '../utils/unit_converter.dart';
 
 class GroceryProvider extends ChangeNotifier {
-  GroceryProvider({this.orderRepository});
+  GroceryProvider({this.firestoreQuery});
 
   final _uuid = const Uuid();
-  final HiveOrderRepository? orderRepository;
+  final FirestoreQuery? firestoreQuery;
   Future<void> _writeQueue = Future.value();
-  Future<void>? _lastWrite;
 
-  HiveOrderRepository get _orders =>
-      orderRepository ?? (throw StateError('Order storage is unavailable.'));
+  FirestoreQuery get _queries =>
+      firestoreQuery ?? (throw StateError('Order storage is unavailable.'));
 
   List<GroceryItem> _items = [];
   GroceryCategory _selectedCategory = GroceryCategory.all;
@@ -25,10 +24,13 @@ class GroceryProvider extends ChangeNotifier {
 
   // Undo stack: stores deleted items
   final List<GroceryItem> _undoStack = [];
+  final Set<String> _pinningItemIds = {};
 
   // ── Getters ───────────────────────────────────────────────────────────────
 
   List<GroceryItem> get allItems => List.unmodifiable(_items);
+
+  bool isPinning(String id) => _pinningItemIds.contains(id);
 
   List<GroceryItem> get filteredItems {
     var list = _items.where((item) {
@@ -44,11 +46,7 @@ class GroceryProvider extends ChangeNotifier {
       return true;
     }).toList();
 
-    // Unchecked first, then checked; within each group sort by creation time
-    list.sort((a, b) {
-      if (a.isChecked != b.isChecked) return a.isChecked ? 1 : -1;
-      return a.createdAt.compareTo(b.createdAt);
-    });
+    list.sort(GroceryItem.compareForDisplay);
     return list;
   }
 
@@ -75,21 +73,32 @@ class GroceryProvider extends ChangeNotifier {
   // ── Initialization ────────────────────────────────────────────────────────
 
   Future<void> loadItems() async {
-    _items = _orders.getActiveItems();
+    _items = await _queries.getActiveItems();
     notifyListeners();
   }
 
   Future<void> _saveItems() {
     final snapshot = _items.map((item) => item.copyWith()).toList();
-    final write = _writeQueue.then((_) => _orders.saveItems(snapshot));
-    _lastWrite = write;
-    _writeQueue = write.catchError((Object _) {});
-    return write;
+    final write = _writeQueue.then((_) => _queries.saveItems(snapshot));
+    final result = write.onError((error, stack) async {
+      try {
+        _items = await _queries.getActiveItems();
+        notifyListeners();
+      } catch (_) {
+        // Keep the original write error for the caller to show.
+      }
+      Error.throwWithStackTrace(
+        error ?? StateError('Item write failed.'),
+        stack,
+      );
+    });
+    _writeQueue = result.catchError((Object _) {});
+    return result;
   }
 
   Future<String> startNewList() async {
-    await (_lastWrite ?? _writeQueue);
-    final uuid = await _orders.startNewList();
+    await _writeQueue;
+    final uuid = await _queries.startNewList();
     _items.clear();
     _undoStack.clear();
     notifyListeners();
@@ -97,9 +106,9 @@ class GroceryProvider extends ChangeNotifier {
   }
 
   Future<void> editSavedList(String uuid) async {
-    await (_lastWrite ?? _writeQueue);
-    await _orders.activateOrder(uuid);
-    _items = _orders.getActiveItems();
+    await _writeQueue;
+    await _queries.activateOrder(uuid);
+    _items = await _queries.getActiveItems();
     _undoStack.clear();
     notifyListeners();
   }
@@ -252,6 +261,7 @@ class GroceryProvider extends ChangeNotifier {
         if (merged != null) {
           existing.quantity = merged;
           existing.isChecked = false;
+          existing.isPinned = existing.isPinned || savedItem.isPinned;
           continue;
         }
       }
@@ -267,6 +277,7 @@ class GroceryProvider extends ChangeNotifier {
             parsed.categoryKey ??
             GroceryCategory.other.storageKey,
         isChecked: false,
+        isPinned: savedItem.isPinned,
         createdAt: savedItem.createdAt ?? DateTime.now(),
         notes: savedItem.notes,
       );
@@ -306,6 +317,28 @@ class GroceryProvider extends ChangeNotifier {
     _sortItems();
     notifyListeners();
     return item.isChecked ? 'Checked ${item.name}' : 'Unchecked ${item.name}';
+  }
+
+  Future<void> togglePinned(String id) async {
+    if (_pinningItemIds.contains(id)) return;
+    final item = _items.firstWhere((item) => item.id == id);
+    final wasPinned = item.isPinned;
+    _pinningItemIds.add(id);
+    item.isPinned = !wasPinned;
+    _sortItems();
+    notifyListeners();
+    try {
+      await _saveItems();
+    } catch (_) {
+      for (final current in _items) {
+        if (current.id == id) current.isPinned = wasPinned;
+      }
+      _sortItems();
+      rethrow;
+    } finally {
+      _pinningItemIds.remove(id);
+      notifyListeners();
+    }
   }
 
   Future<String?> checkItemByName(String name) async {
@@ -371,9 +404,6 @@ class GroceryProvider extends ChangeNotifier {
   }
 
   void _sortItems() {
-    _items.sort((a, b) {
-      if (a.isChecked != b.isChecked) return a.isChecked ? 1 : -1;
-      return a.createdAt.compareTo(b.createdAt);
-    });
+    _items.sort(GroceryItem.compareForDisplay);
   }
 }

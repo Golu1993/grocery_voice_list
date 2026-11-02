@@ -57,25 +57,32 @@ class _EditItemScreenState extends State<EditItemScreen> {
     final provider = widget.groceryProvider;
     final qty = double.tryParse(_quantityCtrl.text.trim()) ?? 1.0;
 
-    if (_isEditing) {
-      final updated = widget.item!.copyWith(
-        name: _nameCtrl.text.trim(),
-        quantity: qty,
-        unit: _selectedUnit,
-        categoryKey: _selectedCategory.storageKey,
-        notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
-      );
-      await provider.updateItem(updated);
-    } else {
-      await provider.addItem(
-        name: _nameCtrl.text.trim(),
-        quantity: qty,
-        unit: _selectedUnit,
-        categoryKey: _selectedCategory.storageKey,
-        notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
-      );
+    try {
+      if (_isEditing) {
+        final updated = widget.item!.copyWith(
+          name: _nameCtrl.text.trim(),
+          quantity: qty,
+          unit: _selectedUnit,
+          categoryKey: _selectedCategory.storageKey,
+          notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+        );
+        await provider.updateItem(updated);
+      } else {
+        await provider.addItem(
+          name: _nameCtrl.text.trim(),
+          quantity: qty,
+          unit: _selectedUnit,
+          categoryKey: _selectedCategory.storageKey,
+          notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+        );
+      }
+      if (mounted) Get.back();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not save item: $error')));
     }
-    if (mounted) Get.back();
   }
 
   @override

@@ -18,8 +18,17 @@ samples, guidance on mobile development, and a full API reference.
 
 ## Data storage
 
-Google sign-in identifies the account. Grocery items and orders are saved in
-per-account Hive boxes on the device. User profiles and device details continue
-to use Firestore; the app no longer reads or writes order documents there.
-Existing Firestore orders are not imported, changed, or deleted, so orders that
-exist only in Firestore will not appear in local list history.
+Google sign-in identifies the account. Grocery lists are stored in Firestore's
+`lists` collection and their items in `list_items`, scoped by the signed-in
+profile UUID. New accounts start with an empty Firestore list; existing Hive
+grocery data is not imported. Hive stores the saved login and local profile
+and device UUIDs through `HiveService`. Firestore rules in `firestore.rules`
+must be deployed before the new collections can be used.
+
+After sign-in setup completes, the profile UUID is saved locally for that
+Firebase account. Later launches open Home and load the active Firestore list
+without uploading profile details again. Signing out clears the saved
+login; the next sign-in runs profile and device setup again.
+
+All profile, device, list, and item queries are handled by `FirestoreQuery`.
+Each signed-in session shares an instance scoped to its profile UUID.
